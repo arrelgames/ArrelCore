@@ -4,11 +4,13 @@ namespace RLGames
 {
     public struct InputCommand
     {
+        /// <summary>Pre-processed movement input (x = strafe, y = forward/back).</summary>
         public Vector2 Move;
+        /// <summary>Pre-processed yaw/pitch rotation deltas. Brains are responsible for all sensitivity, curves, and smoothing before writing here.</summary>
         public Vector2 Look;
-        public bool Fire; // Add a simple fire button
-        public bool Reload; // Optional, if you want reload
-        public bool Aim; // Optional, for aiming down sights
+        public bool Fire;
+        public bool Reload;
+        public bool Aim;
 
         public void Clear()
         {
