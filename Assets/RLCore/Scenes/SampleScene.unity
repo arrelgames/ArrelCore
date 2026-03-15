@@ -516,10 +516,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4176158998439946142, guid: 08ed47e0232284f71b44ddebde186bd2, type: 3}
-      propertyPath: mouseSensitivity
-      value: 50
-      objectReference: {fileID: 0}
     - target: {fileID: 6955681640309996144, guid: 08ed47e0232284f71b44ddebde186bd2, type: 3}
       propertyPath: m_Name
       value: Character_Player

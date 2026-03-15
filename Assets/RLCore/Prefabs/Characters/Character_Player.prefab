@@ -337,6 +337,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.CharacterController3D
   moveSpeed: 5
+  sprintSpeed: 8
+  sprintForwardThreshold: 0
+  jumpForce: 7
   gravity: -9.81
   cameraPivot: {fileID: 5720942304196152880}
 --- !u!114 &564451476412105985
@@ -366,7 +369,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6948642748e5c4a37b4b36e90384efaa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.PlayerBrain
-  mouseSensitivity: 1
+  mouseSensitivity: 50
   mouseDeltaScale: 100
   useMouseCurvesAndDeadzone: 0
   mouseDeadZoneInner: 0.02

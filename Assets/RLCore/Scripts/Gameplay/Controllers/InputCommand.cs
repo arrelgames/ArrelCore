@@ -11,6 +11,8 @@ namespace RLGames
         public bool Fire;
         public bool Reload;
         public bool Aim;
+        public bool Sprint;
+        public bool Jump;
 
         public void Clear()
         {
@@ -19,6 +21,8 @@ namespace RLGames
             Fire = false;
             Reload = false;
             Aim = false;
+            Sprint = false;
+            Jump = false;
         }
     }
 }

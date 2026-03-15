@@ -79,11 +79,15 @@ namespace RLGames
         private Vector2 lookInput;
         private bool fireInput;
         private bool aimInput;
+        private bool sprintInput;
+        private bool jumpRequested;
 
         private InputAction moveAction;
         private InputAction lookAction;
         private InputAction fireAction;
         private InputAction aimAction;
+        private InputAction sprintAction;
+        private InputAction jumpAction;
 
         private bool usingGamepad;
         private Vector2 smoothedLookDelta;
@@ -108,6 +112,8 @@ namespace RLGames
             lookAction = actions["Look"];
             fireAction = actions["Attack"];
             aimAction = actions["Aim"];
+            sprintAction = actions["Sprint"];
+            jumpAction = actions["Jump"];
 
             usingGamepad = playerInput.currentControlScheme == "Gamepad";
             playerInput.onControlsChanged += OnControlsChanged;
@@ -123,6 +129,15 @@ namespace RLGames
                 aimAction.started += OnAimStarted;
                 aimAction.canceled += OnAimCanceled;
             }
+
+            if (sprintAction != null)
+            {
+                sprintAction.started += OnSprintStarted;
+                sprintAction.canceled += OnSprintCanceled;
+            }
+
+            if (jumpAction != null)
+                jumpAction.started += OnJumpStarted;
         }
 
         private void OnDisable()
@@ -144,6 +159,15 @@ namespace RLGames
                 aimAction.started -= OnAimStarted;
                 aimAction.canceled -= OnAimCanceled;
             }
+
+            if (sprintAction != null)
+            {
+                sprintAction.started -= OnSprintStarted;
+                sprintAction.canceled -= OnSprintCanceled;
+            }
+
+            if (jumpAction != null)
+                jumpAction.started -= OnJumpStarted;
         }
 
         private void OnControlsChanged(PlayerInput pi)
@@ -155,6 +179,9 @@ namespace RLGames
         private void OnFireCanceled(InputAction.CallbackContext ctx) => fireInput = false;
         private void OnAimStarted(InputAction.CallbackContext ctx) => aimInput = true;
         private void OnAimCanceled(InputAction.CallbackContext ctx) => aimInput = false;
+        private void OnSprintStarted(InputAction.CallbackContext ctx) => sprintInput = true;
+        private void OnSprintCanceled(InputAction.CallbackContext ctx) => sprintInput = false;
+        private void OnJumpStarted(InputAction.CallbackContext ctx) => jumpRequested = true;
 
         protected override void Think()
         {
@@ -176,6 +203,9 @@ namespace RLGames
             command.Look = processedLook;
             command.Fire = fireInput;
             command.Aim = aimInput;
+            command.Sprint = sprintInput;
+            command.Jump = jumpRequested;
+            jumpRequested = false;
         }
 
         private Vector2 ProcessMouseLook(Vector2 raw)
