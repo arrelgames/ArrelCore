@@ -52,15 +52,6 @@ namespace RLGames
 
             // Execute turret AI
             turretBehavior.Execute();
-
-            // Optional: update cosmetic systems like weapon mesh sway
-            var weaponMeshController = unit.GetComponentInChildren<WeaponMeshController>();
-            if (weaponMeshController != null)
-            {
-                weaponMeshController.SetADS(false);
-                weaponMeshController.SetSwayInput(unit.command.Look);
-                weaponMeshController.SetMoveInput(Vector2.zero);
-            }
         }
     }
 }

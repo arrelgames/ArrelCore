@@ -218,6 +218,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LaserSight
       objectReference: {fileID: 0}
+    - target: {fileID: 100000, guid: 32d3360e079614070ae9e96de3ab04d4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 32d3360e079614070ae9e96de3ab04d4, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

@@ -47,18 +47,6 @@ namespace RLGames
             command.Move = moveInput;
             command.Look = lookInput;
             command.Fire = fireInput;
-
-            // --- Update cosmetic weapon mesh if exists ---
-            if (unit != null)
-            {
-                var weaponMeshController = unit.GetComponentInChildren<WeaponMeshController>();
-                if (weaponMeshController != null)
-                {
-                    weaponMeshController.SetADS(aimInput);
-                    weaponMeshController.SetSwayInput(lookInput);
-                    weaponMeshController.SetMoveInput(moveInput);
-                }
-            }
         }
 
         #region Public API for AI to control inputs

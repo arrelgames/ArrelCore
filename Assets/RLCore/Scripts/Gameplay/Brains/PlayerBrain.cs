@@ -176,17 +176,6 @@ namespace RLGames
             command.Look = processedLook;
             command.Fire = fireInput;
             command.Aim = aimInput;
-
-            if (unit != null)
-            {
-                var weaponMeshController = unit.GetComponentInChildren<WeaponMeshController>();
-                if (weaponMeshController != null)
-                {
-                    weaponMeshController.SetADS(aimInput);
-                    weaponMeshController.SetSwayInput(lookInput);
-                    weaponMeshController.SetMoveInput(moveInput);
-                }
-            }
         }
 
         private Vector2 ProcessMouseLook(Vector2 raw)
@@ -205,12 +194,12 @@ namespace RLGames
                                 ApplyCurve(v.y, mouseLookCurveExponent));
             }
 
-            float yaw   = v.x * mouseSensitivity * horizontalMultiplier;
-            float pitch  = v.y * mouseSensitivity * verticalMultiplier;
+            float yaw = v.x * mouseSensitivity * horizontalMultiplier;
+            float pitch = v.y * mouseSensitivity * verticalMultiplier;
 
             if (aimInput)
             {
-                yaw   *= adsSensitivityMultiplier;
+                yaw *= adsSensitivityMultiplier;
                 pitch *= adsSensitivityMultiplier;
             }
 
@@ -242,12 +231,12 @@ namespace RLGames
                                 ApplyCurve(v.y, controllerLookCurveExponent));
             }
 
-            float yaw   = v.x * controllerSensitivity * horizontalMultiplier * Time.deltaTime;
-            float pitch  = v.y * controllerSensitivity * verticalMultiplier * Time.deltaTime;
+            float yaw = v.x * controllerSensitivity * horizontalMultiplier * Time.deltaTime;
+            float pitch = v.y * controllerSensitivity * verticalMultiplier * Time.deltaTime;
 
             if (aimInput)
             {
-                yaw   *= adsSensitivityMultiplier;
+                yaw *= adsSensitivityMultiplier;
                 pitch *= adsSensitivityMultiplier;
             }
 
