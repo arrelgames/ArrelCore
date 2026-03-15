@@ -21,6 +21,7 @@ namespace RLGames
         private readonly AStarNavigator navigator;
         private readonly float turnSpeed;
         private readonly float arrivalThreshold;
+        private readonly int jumpHeight;
 
         private List<Vector2Int> currentPath;
         private int currentPathIndex;
@@ -30,17 +31,20 @@ namespace RLGames
         private float nextDebugLogTime;
 
         public Vector2 CurrentMoveInput { get; private set; }
+        public bool JumpRequested { get; private set; }
 
         public bool HasActivePath => currentPath != null && currentPathIndex < currentPath.Count;
 
-        public GridPathFollower(Unit unit, GridWorld gridWorld, float turnSpeed = 18f, float arrivalThreshold = 0.1f)
+        public GridPathFollower(Unit unit, GridWorld gridWorld, float turnSpeed = 18f, float arrivalThreshold = 0.1f, int jumpHeight = 0)
         {
             this.unit = unit;
             this.gridWorld = gridWorld;
             this.turnSpeed = turnSpeed;
             this.arrivalThreshold = arrivalThreshold;
+            this.jumpHeight = jumpHeight;
 
             navigator = new AStarNavigator(gridWorld);
+            navigator.SetJumpHeight(jumpHeight);
         }
 
         public void SetDestination(Vector2Int targetCell)
@@ -59,6 +63,7 @@ namespace RLGames
         public TaskStatus Update()
         {
             CurrentMoveInput = Vector2.zero;
+            JumpRequested = false;
 
             if (unit == null || gridWorld == null || !destinationCell.HasValue)
             {
@@ -135,6 +140,10 @@ namespace RLGames
 
                 // Always move forward in local space while in a moving state (full speed)
                 CurrentMoveInput = Vector2.up;
+
+                int currentHeight = gridWorld.GetCellHeight(startGridPos);
+                int waypointHeight = gridWorld.GetCellHeight(currentWaypointGrid);
+                JumpRequested = waypointHeight > currentHeight;
             }
 
             if (DebugEnabled && Time.time >= nextDebugLogTime)

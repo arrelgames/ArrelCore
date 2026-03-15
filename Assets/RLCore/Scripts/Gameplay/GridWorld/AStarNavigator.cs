@@ -7,10 +7,16 @@ namespace RLGames
     public class AStarNavigator
     {
         private GridWorld gridWorld;
+        private int jumpHeight;
 
         public AStarNavigator(GridWorld gridWorld)
         {
             this.gridWorld = gridWorld;
+        }
+
+        public void SetJumpHeight(int jumpHeight)
+        {
+            this.jumpHeight = jumpHeight;
         }
 
         // Asynchronous method to find a path without blocking the main thread
@@ -76,8 +82,7 @@ namespace RLGames
             foreach (var dir in directions)
             {
                 Vector2Int neighbor = current + dir;
-                // Check if the cell is navigable (not blocked). Cells with no GridCell are treated as walkable.
-                if (gridWorld.IsPositionNavigable(neighbor))
+                if (gridWorld.CanTraverse(current, neighbor, jumpHeight))
                 {
                     neighbors.Add(neighbor);
                 }

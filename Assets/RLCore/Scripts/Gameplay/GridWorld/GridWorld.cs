@@ -147,6 +147,26 @@ namespace RLGames
             return !cell.isBlocked;
         }
 
+        public int GetCellHeight(Vector2Int gridPos)
+        {
+            GridCell cell = GetCell(gridPos);
+            if (cell == null) return 0;
+            return cell.blockedHeight;
+        }
+
+        public bool CanTraverse(Vector2Int from, Vector2Int to, int jumpHeight)
+        {
+            GridCell toCell = GetCell(to);
+            if (toCell == null) return true;
+            if (!toCell.isBlocked) return true;
+
+            int fromHeight = GetCellHeight(from);
+            int toHeight = toCell.blockedHeight;
+            int heightDiff = toHeight - fromHeight;
+
+            return heightDiff <= jumpHeight;
+        }
+
         public Vector3 GetClosestNavigablePosition(Vector3 position)
         {
             Vector2Int gridPos = WorldToGrid(position);

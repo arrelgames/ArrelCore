@@ -9,6 +9,7 @@ namespace RLGames
     public interface IMovementIntentProvider
     {
         Vector2 CurrentMoveInput { get; }
+        bool JumpRequested { get; }
     }
 }
 

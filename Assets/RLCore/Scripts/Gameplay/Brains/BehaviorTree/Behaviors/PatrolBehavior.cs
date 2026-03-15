@@ -32,15 +32,16 @@ namespace RLGames
 
         private float waitTimer;
 
-        // Movement intent for CharacterMotor, in local-space input (x = right, y = forward).
         public Vector2 CurrentMoveInput { get; private set; }
+        public bool JumpRequested { get; private set; }
 
         public PatrolBehavior(
             Unit unit,
             GridWorld gridWorld,
             Vector2Int patrolPointA,
             Vector2Int patrolPointB,
-            float waitDurationSeconds = 1f)
+            float waitDurationSeconds = 1f,
+            int jumpHeight = 0)
         {
             this.unit = unit;
             this.gridWorld = gridWorld;
@@ -48,14 +49,14 @@ namespace RLGames
             this.patrolPointB = patrolPointB;
             this.waitDurationSeconds = waitDurationSeconds;
 
-            pathFollower = new GridPathFollower(unit, gridWorld, turnSpeed: 18f, arrivalThreshold: 0.1f);
+            pathFollower = new GridPathFollower(unit, gridWorld, turnSpeed: 18f, arrivalThreshold: 0.1f, jumpHeight: jumpHeight);
             currentState = PatrolState.MovingToA;
         }
 
         public TaskStatus Execute()
         {
-            // Default to no movement each tick; moving states will override this.
             CurrentMoveInput = Vector2.zero;
+            JumpRequested = false;
 
             LogStateChangeIfNeeded();
 
@@ -90,6 +91,7 @@ namespace RLGames
             TaskStatus moveStatus = pathFollower.Update();
 
             CurrentMoveInput = pathFollower.CurrentMoveInput;
+            JumpRequested = pathFollower.JumpRequested;
 
             if (DebugEnabled && Time.time >= nextDebugLogTime)
             {

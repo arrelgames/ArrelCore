@@ -13,6 +13,8 @@ namespace RLGames
         [SerializeField] private Vector2Int patrolPointA;
         [SerializeField] private Vector2Int patrolPointB;
         [SerializeField] private float waitDurationSeconds = 1f;
+        [Tooltip("Max height difference (in grid units) the unit can jump up. Falling down is always allowed.")]
+        [SerializeField] private int jumpHeight = 1;
 
         [Header("Debug")]
         [SerializeField] private bool enableDebugLogs = true;
@@ -67,7 +69,8 @@ namespace RLGames
                 gridWorld,
                 patrolPointA,
                 patrolPointB,
-                waitDurationSeconds
+                waitDurationSeconds,
+                jumpHeight
             );
 
             if (enableDebugLogs)
@@ -92,6 +95,7 @@ namespace RLGames
             if (currentBehavior is IMovementIntentProvider mover)
             {
                 command.Move = mover.CurrentMoveInput;
+                command.Jump = mover.JumpRequested;
             }
             else
             {

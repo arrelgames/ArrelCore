@@ -15,6 +15,7 @@ namespace RLGames
         private float _nextDebugTime;
 
         public Vector2 CurrentMoveInput { get; private set; }
+        public bool JumpRequested => false;
 
         public WanderBehavior(Unit unit, GridWorld gridWorld)
         {

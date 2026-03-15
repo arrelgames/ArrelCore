@@ -8,8 +8,12 @@ namespace RLGames
 
         [Header("Grid Settings")]
         [SerializeField] private Vector2Int baseSize = Vector2Int.one;
+        [Tooltip("Height of this prop in grid units. Used for height-aware pathfinding.")]
+        [SerializeField] private int height = 1;
 
         public bool isBlocked = true;
+
+        public int Height => height;
 
         public Vector2Int Size { get; private set; }
 
