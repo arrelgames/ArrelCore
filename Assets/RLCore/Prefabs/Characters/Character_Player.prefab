@@ -272,6 +272,7 @@ GameObject:
   - component: {fileID: 4415627792247611300}
   - component: {fileID: 8470010240310738015}
   - component: {fileID: 564451476412105985}
+  - component: {fileID: 8372999491781879426}
   - component: {fileID: 4176158998439946142}
   - component: {fileID: 3946658615840479181}
   m_Layer: 0
@@ -355,8 +356,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.Unit
   motor: {fileID: 8470010240310738015}
-  weapon: {fileID: 0}
+  weapon: {fileID: 7491415382513862777}
   stats: {fileID: 0}
+--- !u!114 &8372999491781879426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6955681640309996144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5272bfdb5367240ee926b60c67dd9b88, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.UnitStats
+  teamNumber: 0
+  hpMax: 100
+  hpCurrent: 0
 --- !u!114 &4176158998439946142
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -366,10 +382,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 6955681640309996144}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6948642748e5c4a37b4b36e90384efaa, type: 3}
+  m_Script: {fileID: 11500000, guid: bb2a447fc9ca2424d89b9a1223dec5d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.PlayerBrain
-  mouseSensitivity: 50
+  mouseSensitivity: 40
   mouseDeltaScale: 100
   useMouseCurvesAndDeadzone: 0
   mouseDeadZoneInner: 0.02
@@ -379,12 +395,12 @@ MonoBehaviour:
   mouseAdsSmoothingStrength: 0.3
   mouseAdaptiveSmoothingRefMagnitude: 1.5
   mouseAdaptiveSmoothingMaxAlpha: 0.9
-  controllerSensitivity: 200
+  controllerSensitivity: 120
   useControllerCurvesAndDeadzone: 1
   controllerDeadZoneInner: 0.1
   controllerDeadZoneOuter: 0.95
   controllerLookCurveExponent: 2
-  useControllerSmoothing: 0
+  useControllerSmoothing: 1
   controllerHipfireSmoothingStrength: 0.3
   controllerAdsSmoothingStrength: 0.15
   horizontalMultiplier: 1
@@ -523,6 +539,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2780921397053552405, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
   m_PrefabInstance: {fileID: 1964420244859379814}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7491415382513862777 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8986334197984471071, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+  m_PrefabInstance: {fileID: 1964420244859379814}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70f24e9ec104941ebbd96209048abfeb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.Weapon
 --- !u!1001 &8097539563660036718
 PrefabInstance:
   m_ObjectHideFlags: 0

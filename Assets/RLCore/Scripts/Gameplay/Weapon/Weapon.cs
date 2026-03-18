@@ -32,6 +32,21 @@ namespace RLGames
             // Apply cosmetic recoil
             weaponMeshController?.ApplyRecoil();
 
+            // Emit a Sound Stimulus so Ai can hear the weapon fire
+#if false
+            StimulusRegistry.EmitStimulus(
+                new Stimulus(
+                    StimulusType.Sound,
+                    transform.position,
+                    gameObject,
+                    1f
+                )
+            );
+#endif
+
+
+
+            // Fire the weapon and check for hits
             Ray ray = new Ray(firePoint.position, firePoint.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, maxRange))
             {
