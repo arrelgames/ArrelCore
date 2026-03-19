@@ -16,8 +16,9 @@ namespace RLGames
         [Header("Prop Shape")]
         [SerializeField] private float propHeight = 1f;
 
-        [Header("Blocking")]
-        [SerializeField] private bool blocksMovement = false;
+        [Header("Solid Blocking")]
+        [UnityEngine.Serialization.FormerlySerializedAs("blocksMovement")]
+        [SerializeField] private bool solid = false;
 
         [Range(0, 1)]
         [SerializeField] private float soundSuppression = 0f;
@@ -26,7 +27,7 @@ namespace RLGames
         [SerializeField] private float visionSuppression = 0f;
 
         public bool CreatesSurface => createsSurface;
-        public bool BlocksMovement => blocksMovement;
+        public bool Solid => solid;
 
         public float SurfaceHeight => surfaceHeight;
         public float PropHeight => propHeight;

@@ -37,7 +37,7 @@ namespace RLGames
 
             foreach (var p in props)
             {
-                if (p.BlocksMovement)
+                if (p.Solid)
                     blocksMovement = true;
 
                 soundSuppression = Mathf.Max(soundSuppression, p.SoundSuppression);

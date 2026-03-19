@@ -71,10 +71,12 @@ namespace RLGames
             if (currentOption.Behavior is IMovementIntentProvider mover)
             {
                 command.Move = mover.CurrentMoveInput;
+                command.Jump = mover.JumpRequested;
             }
             else
             {
                 command.Move = Vector2.zero;
+                command.Jump = false;
             }
 
             _ = status;

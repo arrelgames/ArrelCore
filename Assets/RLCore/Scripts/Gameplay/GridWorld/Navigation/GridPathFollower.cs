@@ -20,6 +20,21 @@ namespace RLGames
         private float repathTimer;
         private const float REPATHTIME = 0.5f;
 
+        // Repath gating: avoid re-requesting the route while we are still making progress.
+        private GridNode lastRequestedStart;
+        private bool hasLastRequestedStart;
+        private float lastProgressTime;
+        private int lastProgressIndex = -1;
+        private const float STUCK_TIME = 1.25f;
+
+        // Arrival hysteresis: avoids index-advance flicker around the threshold.
+        [Header("Arrival Hysteresis")]
+        [SerializeField] private float advanceDistanceEnter = 0.2f;
+        [SerializeField] private float advanceDistanceExit = 0.25f;
+        [SerializeField] private int advanceFramesRequired = 2;
+
+        private int advanceFrameCounter;
+
         public Vector2 CurrentMoveInput { get; private set; }
         public bool JumpRequested { get; private set; }
 
@@ -77,6 +92,12 @@ namespace RLGames
             destination = node;
             currentPath = null;
             currentIndex = 0;
+
+            hasLastRequestedStart = false;
+            lastProgressTime = 0f;
+            lastProgressIndex = -1;
+            advanceFrameCounter = 0;
+            lastLoggedIndex = -1;
         }
 
         public TaskStatus Update()
@@ -94,11 +115,40 @@ namespace RLGames
 
             repathTimer -= Time.deltaTime;
 
-            if ((currentPath == null || repathTimer <= 0f) && !isPathPending)
+            if (currentPath == null && !isPathPending)
             {
                 RequestPath(start, destination.Value);
                 repathTimer = REPATHTIME;
+                lastRequestedStart = start;
+                hasLastRequestedStart = true;
+                lastProgressTime = Time.time;
+                lastProgressIndex = currentIndex;
                 return TaskStatus.Running;
+            }
+
+            if (repathTimer <= 0f && !isPathPending && currentPath != null)
+            {
+                bool pathExhausted = currentPath == null || currentIndex >= currentPath.Count;
+                bool startMeaningfullyChanged = false;
+                if (hasLastRequestedStart && currentIndex < currentPath.Count)
+                {
+                    startMeaningfullyChanged = !start.Equals(currentPath[currentIndex]);
+                }
+
+                bool stuck = (Time.time - lastProgressTime) > STUCK_TIME;
+
+                if (pathExhausted || stuck || startMeaningfullyChanged)
+                {
+                    RequestPath(start, destination.Value);
+                    repathTimer = REPATHTIME;
+                    lastRequestedStart = start;
+                    hasLastRequestedStart = true;
+                    // Keep lastProgressTime/index as-is; it will be updated when we advance.
+                    return TaskStatus.Running;
+                }
+
+                // Not stale: just reset timer and continue.
+                repathTimer = REPATHTIME;
             }
 
             if (currentPath == null || currentIndex >= currentPath.Count)
@@ -158,8 +208,27 @@ namespace RLGames
 
             // Advance to next node when close
             int prevIndex = currentIndex;
-            if (dist < 0.1f)
+
+            if (dist < advanceDistanceEnter)
+            {
+                advanceFrameCounter++;
+            }
+            else if (dist > advanceDistanceExit)
+            {
+                advanceFrameCounter = 0;
+            }
+
+            if (advanceFrameCounter >= advanceFramesRequired)
+            {
                 currentIndex++;
+                advanceFrameCounter = 0;
+            }
+
+            if (currentIndex != prevIndex)
+            {
+                lastProgressTime = Time.time;
+                lastProgressIndex = currentIndex;
+            }
 
             if (logNodeProgress &&
                 currentPath != null &&

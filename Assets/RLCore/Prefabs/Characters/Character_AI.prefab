@@ -78,7 +78,7 @@ MonoBehaviour:
   sprintSpeed: 8
   sprintForwardThreshold: 0
   jumpForce: 7
-  gravity: -9.81
+  gravity: -30
   cameraPivot: {fileID: 7160920371142608978}
 --- !u!114 &9128013772537741128
 MonoBehaviour:

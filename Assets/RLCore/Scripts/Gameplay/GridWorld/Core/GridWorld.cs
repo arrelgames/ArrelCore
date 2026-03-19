@@ -21,10 +21,10 @@ namespace RLGames
 
         private GridNavigation navigation;
 
-        // Non-surface props (createsSurface=false) may register before any surfaces
-        // exist at their footprint tiles. If that happens, they can't attach to a
-        // cell's state and would remain ineffective unless we retry later.
-        private readonly List<GridProp> pendingNonSurfaceProps = new();
+        // Solid props may register before any surfaces exist at their footprint tiles.
+        // If that happens, they can't attach to the blocked cell states and would
+        // remain ineffective unless we retry later.
+        private readonly List<GridProp> pendingSolidProps = new();
 
         private void Awake()
         {
@@ -127,6 +127,12 @@ namespace RLGames
             Vector2Int origin = prop.GetOrigin();
             Vector2Int size = prop.Size;
 
+            const float SURFACE_EPS = 0.001f;
+
+            float baseHeight = prop.transform.position.y;
+            float topHeight = prop.GetSurfaceWorldHeight();
+            bool isSolid = prop.Solid;
+
             bool needsRetry = false;
 
             for (int x = origin.x; x < origin.x + size.x; x++)
@@ -136,47 +142,95 @@ namespace RLGames
                     Vector2Int pos = new Vector2Int(x, y);
                     GridStack stack = EnsureStack(pos);
 
-                    GridCell cell = null;
-
                     if (prop.CreatesSurface)
                     {
-                        float height = prop.GetSurfaceWorldHeight();
+                        // Ensure the top surface exists for walk/climb.
+                        float height = topHeight;
                         int surfaceIndex = stack.AddSurface(height);
-                        cell = stack.GetCell(surfaceIndex);
-                    }
-                    else
-                    {
-                        float baseHeight = prop.transform.position.y;
-                        int closest = stack.GetClosestSurface(baseHeight);
+                        GridCell createdCell = stack.GetCell(surfaceIndex);
 
-                        if (closest >= 0)
-                            cell = stack.GetCell(closest);
-                        else
+                        // For solid props, we intentionally do NOT add the prop to the top cell
+                        // so the top remains walkable.
+                        if (!isSolid && createdCell != null)
+                        {
+                            createdCell.AddProp(prop);
+                        }
+                    }
+
+                    if (isSolid)
+                    {
+                        // Attach the solid prop to all existing surfaces between base and top.
+                        // blocked range: [baseHeight, topHeight)
+                        bool foundBlockedSurface = false;
+
+                        for (int s = 0; s < stack.Cells.Count; s++)
+                        {
+                            GridCell cell = stack.GetCell(s);
+                            if (cell == null) continue;
+
+                            float h = cell.surfaceHeight;
+                            bool inBlockedRange = h >= baseHeight - SURFACE_EPS && h < topHeight - SURFACE_EPS;
+                            if (!inBlockedRange)
+                                continue;
+
+                            bool alreadyOccupied = false;
+                            foreach (var occupied in prop.OccupiedCells)
+                            {
+                                if (occupied == cell)
+                                {
+                                    alreadyOccupied = true;
+                                    break;
+                                }
+                            }
+                            if (!alreadyOccupied)
+                            {
+                                cell.AddProp(prop);
+                            }
+
+                            foundBlockedSurface = true;
+                        }
+
+                        if (!foundBlockedSurface)
                             needsRetry = true;
                     }
-
-                    if (cell != null)
-                        cell.AddProp(prop);
+                    else if (!prop.CreatesSurface)
+                    {
+                        // Non-solid, non-surface props attach to the closest surface so
+                        // suppression/covers still work on an existing layer.
+                        int closest = stack.GetClosestSurface(baseHeight);
+                        if (closest >= 0)
+                        {
+                            GridCell cell = stack.GetCell(closest);
+                            if (cell != null)
+                            {
+                                cell.AddProp(prop);
+                            }
+                        }
+                        else
+                        {
+                            needsRetry = true;
+                        }
+                    }
 
                     MarkDirty(pos);
                 }
             }
 
-            // If this prop didn't attach because no surfaces existed yet, retry
+            // If a solid prop couldn't attach to the blocked layer(s) yet, retry
             // after future surface props are registered.
-            if (!prop.CreatesSurface && needsRetry && !pendingNonSurfaceProps.Contains(prop))
-                pendingNonSurfaceProps.Add(prop);
+            if (needsRetry && isSolid && !pendingSolidProps.Contains(prop))
+                pendingSolidProps.Add(prop);
 
-            // When new surfaces are created, retry any pending non-surface blockers.
-            if (prop.CreatesSurface && pendingNonSurfaceProps.Count > 0)
-                TryAttachPendingNonSurfaceProps();
+            // When new surfaces are created, retry any pending solid blockers.
+            if (prop.CreatesSurface && pendingSolidProps.Count > 0)
+                TryAttachPendingSolidProps();
 
             UpdateDirtyNavigation();
         }
 
         public void UnregisterProp(GridProp prop)
         {
-            pendingNonSurfaceProps.Remove(prop);
+            pendingSolidProps.Remove(prop);
 
             // Remove from all cells
             foreach (var cell in prop.OccupiedCells)
@@ -203,20 +257,23 @@ namespace RLGames
 
         #endregion
 
-        private void TryAttachPendingNonSurfaceProps()
+        private void TryAttachPendingSolidProps()
         {
-            if (pendingNonSurfaceProps.Count == 0)
+            if (pendingSolidProps.Count == 0)
                 return;
 
             // Iterate backwards since we may remove items.
-            for (int i = pendingNonSurfaceProps.Count - 1; i >= 0; i--)
+            for (int i = pendingSolidProps.Count - 1; i >= 0; i--)
             {
-                GridProp prop = pendingNonSurfaceProps[i];
+                GridProp prop = pendingSolidProps[i];
 
                 Vector2Int origin = prop.GetOrigin();
                 Vector2Int size = prop.Size;
 
+                const float SURFACE_EPS = 0.001f;
+
                 float baseHeight = prop.transform.position.y;
+                float topHeight = prop.GetSurfaceWorldHeight();
 
                 bool stillMissingSomeTiles = false;
 
@@ -233,41 +290,45 @@ namespace RLGames
                             continue;
                         }
 
-                        int closest = stack.GetClosestSurface(baseHeight);
-                        if (closest < 0)
-                        {
-                            stillMissingSomeTiles = true;
-                            continue;
-                        }
+                        bool foundBlockedSurface = false;
 
-                        GridCell cell = stack.GetCell(closest);
-                        if (cell == null)
+                        for (int s = 0; s < stack.Cells.Count; s++)
                         {
-                            stillMissingSomeTiles = true;
-                            continue;
-                        }
+                            GridCell cell = stack.GetCell(s);
+                            if (cell == null) continue;
 
-                        // Avoid duplicate prop entries inside GridCellState.
-                        bool alreadyOccupied = false;
-                        foreach (var occupied in prop.OccupiedCells)
-                        {
-                            if (occupied == cell)
+                            float h = cell.surfaceHeight;
+                            bool inBlockedRange = h >= baseHeight - SURFACE_EPS && h < topHeight - SURFACE_EPS;
+                            if (!inBlockedRange)
+                                continue;
+
+                            foundBlockedSurface = true;
+
+                            // Avoid duplicate prop entries inside GridCellState.
+                            bool alreadyOccupied = false;
+                            foreach (var occupied in prop.OccupiedCells)
                             {
-                                alreadyOccupied = true;
-                                break;
+                                if (occupied == cell)
+                                {
+                                    alreadyOccupied = true;
+                                    break;
+                                }
+                            }
+
+                            if (!alreadyOccupied)
+                            {
+                                cell.AddProp(prop);
+                                MarkDirty(pos);
                             }
                         }
 
-                        if (!alreadyOccupied)
-                        {
-                            cell.AddProp(prop);
-                            MarkDirty(pos);
-                        }
+                        if (!foundBlockedSurface)
+                            stillMissingSomeTiles = true;
                     }
                 }
 
                 if (!stillMissingSomeTiles)
-                    pendingNonSurfaceProps.RemoveAt(i);
+                    pendingSolidProps.RemoveAt(i);
             }
         }
 
