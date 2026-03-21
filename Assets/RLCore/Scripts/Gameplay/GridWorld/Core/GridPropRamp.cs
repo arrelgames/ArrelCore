@@ -58,15 +58,31 @@ namespace RLGames
                 GridWorld.Instance.UnregisterProp(this);
         }
 
-        private void OnValidate()
+#if UNITY_EDITOR
+        protected override void OnValidate()
         {
-            UpdateFromTransform();
+            base.OnValidate();
         }
+#endif
 
         public float GetDeckWorldYAtWorldGrid(int gridX, int gridY)
         {
-            Vector2Int o = GetOrigin();
-            return GetDeckWorldYAtFootprintLocal(gridX - o.x, gridY - o.y);
+            GridWorld gw = GridWorld.Instance;
+            float cs = gw != null ? gw.CellSizeXZ : 1f;
+            Vector3 cellCenter = gw != null
+                ? gw.GridToWorldXZ(new Vector2Int(gridX, gridY))
+                : new Vector3((gridX + 0.5f) * cs, 0f, (gridY + 0.5f) * cs);
+
+            Vector3 d = cellCenter - transform.position;
+            GetFootprintEdgeVectorsWorld(out Vector3 ex, out Vector3 ez);
+
+            float lx = Vector3.Dot(d, ex.normalized) / cs;
+            float ly = Vector3.Dot(d, ez.normalized) / cs;
+
+            int ix = Mathf.Clamp(Mathf.FloorToInt(lx), 0, Mathf.Max(0, Size.x - 1));
+            int iy = Mathf.Clamp(Mathf.FloorToInt(ly), 0, Mathf.Max(0, Size.y - 1));
+
+            return GetDeckWorldYAtFootprintLocal(ix, iy);
         }
 
         /// <summary>Local footprint indices relative to ramp origin (0 .. Size-1).</summary>

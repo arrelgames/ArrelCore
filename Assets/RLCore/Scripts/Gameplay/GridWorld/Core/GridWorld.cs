@@ -133,9 +133,6 @@ namespace RLGames
                 return;
             }
 
-            Vector2Int origin = prop.GetOrigin();
-            Vector2Int size = prop.Size;
-
             const float SURFACE_EPS = 0.001f;
 
             float baseHeight = prop.transform.position.y;
@@ -144,11 +141,8 @@ namespace RLGames
 
             bool needsRetry = false;
 
-            for (int x = origin.x; x < origin.x + size.x; x++)
+            foreach (Vector2Int pos in prop.EnumerateOccupiedGridCells())
             {
-                for (int y = origin.y; y < origin.y + size.y; y++)
-                {
-                    Vector2Int pos = new Vector2Int(x, y);
                     GridStack stack = EnsureStack(pos);
 
                     if (prop.CreatesSurface)
@@ -222,7 +216,6 @@ namespace RLGames
                     }
 
                     MarkDirty(pos);
-                }
             }
 
             // If a solid prop couldn't attach to the blocked layer(s) yet, retry
@@ -245,9 +238,6 @@ namespace RLGames
             pendingFilledRampProps.Remove(ramp);
             registeredRamps.Add(ramp);
 
-            Vector2Int origin = ramp.GetOrigin();
-            Vector2Int size = ramp.Size;
-
             const float SURFACE_EPS = 0.001f;
             const float SURFACE_MATCH_EPS = 0.01f;
             float deckMatchEps = Mathf.Max(SURFACE_MATCH_EPS, cellSizeY * 0.25f);
@@ -258,13 +248,10 @@ namespace RLGames
             bool needsRetry = false;
             bool isFilled = ramp.Filled;
 
-            for (int x = origin.x; x < origin.x + size.x; x++)
+            foreach (Vector2Int pos in ramp.EnumerateOccupiedGridCells())
             {
-                for (int y = origin.y; y < origin.y + size.y; y++)
-                {
-                    Vector2Int pos = new Vector2Int(x, y);
                     GridStack stack = EnsureStack(pos);
-                    float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(x, y);
+                    float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(pos.x, pos.y);
 
                     int surfaceIndex = stack.FindSurfaceIndexNear(deckWorldY, deckMatchEps);
                     if (surfaceIndex < 0)
@@ -310,17 +297,13 @@ namespace RLGames
                     }
 
                     MarkDirty(pos);
-                }
             }
 
             if (needsRetry && isFilled && !pendingFilledRampProps.Contains(ramp))
                 pendingFilledRampProps.Add(ramp);
 
-            for (int x = origin.x; x < origin.x + size.x; x++)
-            {
-                for (int y = origin.y; y < origin.y + size.y; y++)
-                    RecomputeStackCeilings(new Vector2Int(x, y));
-            }
+            foreach (Vector2Int pos in ramp.EnumerateOccupiedGridCells())
+                RecomputeStackCeilings(pos);
 
             TryAttachPendingSolidProps();
             TryAttachPendingRampProps();
@@ -347,9 +330,7 @@ namespace RLGames
             {
                 if (ramp == null) continue;
 
-                Vector2Int ro = ramp.GetOrigin();
-                Vector2Int rs = ramp.Size;
-                if (pos.x < ro.x || pos.x >= ro.x + rs.x || pos.y < ro.y || pos.y >= ro.y + rs.y)
+                if (!ramp.OccupiesGridCell(pos))
                     continue;
 
                 if (ramp.Filled)
@@ -380,18 +361,12 @@ namespace RLGames
             {
                 GridPropRamp ramp = pendingFilledRampProps[i];
 
-                Vector2Int origin = ramp.GetOrigin();
-                Vector2Int size = ramp.Size;
-
                 float baseHeight = ramp.transform.position.y;
 
                 bool stillMissingSomeTiles = false;
 
-                for (int x = origin.x; x < origin.x + size.x; x++)
+                foreach (Vector2Int pos in ramp.EnumerateOccupiedGridCells())
                 {
-                    for (int y = origin.y; y < origin.y + size.y; y++)
-                    {
-                        Vector2Int pos = new Vector2Int(x, y);
                         GridStack stack = GetStack(pos);
 
                         if (stack == null || stack.Cells.Count == 0)
@@ -400,7 +375,7 @@ namespace RLGames
                             continue;
                         }
 
-                        float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(x, y);
+                        float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(pos.x, pos.y);
 
                         bool foundBlockedSurface = false;
 
@@ -435,18 +410,14 @@ namespace RLGames
 
                         if (!foundBlockedSurface)
                             stillMissingSomeTiles = true;
-                    }
                 }
 
                 if (!stillMissingSomeTiles)
                 {
                     pendingFilledRampProps.RemoveAt(i);
 
-                    for (int x = origin.x; x < origin.x + size.x; x++)
-                    {
-                        for (int y = origin.y; y < origin.y + size.y; y++)
-                            RecomputeStackCeilings(new Vector2Int(x, y));
-                    }
+                    foreach (Vector2Int pos in ramp.EnumerateOccupiedGridCells())
+                        RecomputeStackCeilings(pos);
                 }
             }
         }
@@ -469,19 +440,12 @@ namespace RLGames
 
             prop.ClearCells();
 
-            // Mark affected area dirty
-            Vector2Int origin = prop.GetOrigin();
-            Vector2Int size = prop.Size;
-
-            for (int x = origin.x; x < origin.x + size.x; x++)
+            // Mark affected area dirty (footprint from transform; OccupiedCells already cleared)
+            foreach (Vector2Int p in prop.EnumerateOccupiedGridCells())
             {
-                for (int y = origin.y; y < origin.y + size.y; y++)
-                {
-                    Vector2Int p = new Vector2Int(x, y);
-                    MarkDirty(p);
-                    if (prop is GridPropRamp)
-                        RecomputeStackCeilings(p);
-                }
+                MarkDirty(p);
+                if (prop is GridPropRamp)
+                    RecomputeStackCeilings(p);
             }
 
             UpdateDirtyNavigation();
@@ -499,9 +463,6 @@ namespace RLGames
             {
                 GridProp prop = pendingSolidProps[i];
 
-                Vector2Int origin = prop.GetOrigin();
-                Vector2Int size = prop.Size;
-
                 const float SURFACE_EPS = 0.001f;
 
                 float baseHeight = prop.transform.position.y;
@@ -509,11 +470,8 @@ namespace RLGames
 
                 bool stillMissingSomeTiles = false;
 
-                for (int x = origin.x; x < origin.x + size.x; x++)
+                foreach (Vector2Int pos in prop.EnumerateOccupiedGridCells())
                 {
-                    for (int y = origin.y; y < origin.y + size.y; y++)
-                    {
-                        Vector2Int pos = new Vector2Int(x, y);
                         GridStack stack = GetStack(pos);
 
                         if (stack == null || stack.Cells.Count == 0)
@@ -556,7 +514,6 @@ namespace RLGames
 
                         if (!foundBlockedSurface)
                             stillMissingSomeTiles = true;
-                    }
                 }
 
                 if (!stillMissingSomeTiles)
