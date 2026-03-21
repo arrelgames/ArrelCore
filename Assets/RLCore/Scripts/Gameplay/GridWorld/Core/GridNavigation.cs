@@ -78,6 +78,9 @@ namespace RLGames
 
                     bool isClimb = delta > 0.05f;
                     bool isFall = delta < -0.05f;
+                    if (isFall && IntermediateSurfaceBlocksFall(stack, fromCell, toCell))
+                        continue;
+
                     bool requestsJump = (isClimb && delta > JUMP_REQUEST_MIN_STEP) ||
                                          (isFall && delta < -JUMP_REQUEST_MIN_STEP);
 
@@ -116,6 +119,9 @@ namespace RLGames
 
                     bool isClimb = delta > 0.05f;
                     bool isFall = delta < -0.05f;
+                    if (isFall && IntermediateSurfaceBlocksFall(stack, fromCell, toCell))
+                        continue;
+
                     bool requestsJump = (isClimb && delta > JUMP_REQUEST_MIN_STEP) ||
                                          (isFall && delta < -JUMP_REQUEST_MIN_STEP);
 
@@ -144,6 +150,32 @@ namespace RLGames
                 return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// Lateral move to a lower surface must not pass through another surface in the target column
+        /// (e.g. floating deck above ground on the same tile).
+        /// </summary>
+        private static bool IntermediateSurfaceBlocksFall(
+            GridStack stack, GridCell fromCell, GridCell toCell)
+        {
+            if (stack == null || fromCell == null || toCell == null)
+                return false;
+
+            const float eps = 0.05f;
+
+            for (int k = 0; k < stack.Cells.Count; k++)
+            {
+                GridCell c = stack.GetCell(k);
+                if (c == null || ReferenceEquals(c, toCell))
+                    continue;
+
+                if (c.surfaceHeight > toCell.surfaceHeight + eps &&
+                    c.surfaceHeight <= fromCell.surfaceHeight + eps)
+                    return true;
+            }
+
+            return false;
         }
 
         private bool CanMoveDiagonally(GridNode from, Vector2Int dir)
