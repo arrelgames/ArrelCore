@@ -64,6 +64,9 @@ namespace RLGames
 
             foreach (var dir in GridUtilities.CardinalDirs)
             {
+                if (grid.BlocksPassageOutgoing(pos, dir))
+                    continue;
+
                 Vector2Int targetPos = pos + dir;
                 GridStack stack = grid.GetStack(targetPos);
                 if (stack == null) continue;
@@ -191,6 +194,9 @@ namespace RLGames
             Vector2Int dirB = new Vector2Int(0, dir.y);
 
             GridCell fromCell = grid.GetCell(from);
+
+            if (grid.BlocksPassageOutgoing(pos, dirA) || grid.BlocksPassageOutgoing(pos, dirB))
+                return false;
 
             GridCell cellA = grid.GetStack(pos + dirA)?.GetCell(from.surface);
             GridCell cellB = grid.GetStack(pos + dirB)?.GetCell(from.surface);

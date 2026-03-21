@@ -121,6 +121,50 @@ namespace RLGames
             return stack;
         }
 
+        /// <summary>True if movement from <paramref name="pos"/> in <paramref name="dir"/> is blocked by a passage-only solid.</summary>
+        public bool BlocksPassageOutgoing(Vector2Int pos, Vector2Int dir)
+        {
+            GridStack stack = GetStack(pos);
+            return stack != null && stack.BlocksOutgoingPassage(dir);
+        }
+
+        private static Vector2Int SnapForwardToCardinalGridStep(Transform t)
+        {
+            Vector3 f = t.forward;
+            f.y = 0f;
+            if (f.sqrMagnitude < 1e-6f)
+            {
+                f = t.right;
+                f.y = 0f;
+            }
+
+            if (f.sqrMagnitude < 1e-6f)
+                return Vector2Int.up;
+
+            f.Normalize();
+
+            return Mathf.Abs(f.x) >= Mathf.Abs(f.z)
+                ? new Vector2Int(f.x >= 0f ? 1 : -1, 0)
+                : new Vector2Int(0, f.z >= 0f ? 1 : -1);
+        }
+
+        private void ApplyPassageSolidEdges(GridProp prop, int delta)
+        {
+            if (delta == 0 || !prop.Solid || !prop.PassageBlockingSolid)
+                return;
+
+            Vector2Int blockDir = SnapForwardToCardinalGridStep(prop.transform);
+
+            foreach (Vector2Int p in prop.EnumerateOccupiedGridCells())
+            {
+                Vector2Int q = p + blockDir;
+                EnsureStack(p).AddOutgoingPassageBlock(blockDir, delta);
+                EnsureStack(q).AddOutgoingPassageBlock(-blockDir, delta);
+                MarkDirty(p);
+                MarkDirty(q);
+            }
+        }
+
         #endregion
 
         #region Prop Management
@@ -217,6 +261,9 @@ namespace RLGames
 
                     MarkDirty(pos);
             }
+
+            if (isSolid && prop.PassageBlockingSolid && !needsRetry)
+                ApplyPassageSolidEdges(prop, +1);
 
             // If a solid prop couldn't attach to the blocked layer(s) yet, retry
             // after future surface props are registered.
@@ -432,6 +479,9 @@ namespace RLGames
                 registeredRamps.Remove(rampUnregister);
             }
 
+            if (prop.Solid && prop.PassageBlockingSolid)
+                ApplyPassageSolidEdges(prop, -1);
+
             // Remove from all cells
             foreach (var cell in prop.OccupiedCells)
             {
@@ -517,7 +567,12 @@ namespace RLGames
                 }
 
                 if (!stillMissingSomeTiles)
+                {
+                    if (prop.Solid && prop.PassageBlockingSolid)
+                        ApplyPassageSolidEdges(prop, +1);
+
                     pendingSolidProps.RemoveAt(i);
+                }
             }
         }
 

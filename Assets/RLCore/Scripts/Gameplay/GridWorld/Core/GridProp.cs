@@ -20,6 +20,11 @@ namespace RLGames
         [UnityEngine.Serialization.FormerlySerializedAs("blocksMovement")]
         [SerializeField] private bool solid = false;
 
+        [Tooltip(
+            "When solid: the tile stays walkable. Blocks cardinal passage across the face given by " +
+            "transform.forward projected on XZ (snapped to grid axes). Use for thin walls.")]
+        [SerializeField] private bool passageBlockingSolid;
+
         [Range(0, 1)]
         [SerializeField] private float soundSuppression = 0f;
 
@@ -28,6 +33,8 @@ namespace RLGames
 
         public bool CreatesSurface => createsSurface;
         public bool Solid => solid;
+
+        public bool PassageBlockingSolid => passageBlockingSolid;
 
         public float SurfaceHeight => surfaceHeight;
         public float PropHeight => propHeight;

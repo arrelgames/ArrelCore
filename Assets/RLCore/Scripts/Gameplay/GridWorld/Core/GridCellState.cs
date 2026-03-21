@@ -37,7 +37,10 @@ namespace RLGames
 
             foreach (var p in props)
             {
-                if (p.Solid || p is GridPropRamp { Filled: true })
+                bool solidBlocksTile = p.Solid &&
+                    !(p is GridProp { PassageBlockingSolid: true });
+
+                if (solidBlocksTile || p is GridPropRamp { Filled: true })
                     blocksMovement = true;
 
                 soundSuppression = Mathf.Max(soundSuppression, p.SoundSuppression);

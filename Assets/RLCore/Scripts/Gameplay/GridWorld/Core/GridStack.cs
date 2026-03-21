@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace RLGames
 {
@@ -6,7 +7,33 @@ namespace RLGames
     {
         private readonly List<GridCell> cells = new();
 
+        /// <summary>Refcounts matching <see cref="GridUtilities.CardinalDirs"/> order: up, down, left, right.</summary>
+        private readonly int[] outgoingPassageBlockCount = new int[4];
+
         public IReadOnlyList<GridCell> Cells => cells;
+
+        private static int CardinalDirIndex(Vector2Int dir)
+        {
+            if (dir == Vector2Int.up) return 0;
+            if (dir == Vector2Int.down) return 1;
+            if (dir == Vector2Int.left) return 2;
+            if (dir == Vector2Int.right) return 3;
+            return -1;
+        }
+
+        public void AddOutgoingPassageBlock(Vector2Int dir, int delta)
+        {
+            int i = CardinalDirIndex(dir);
+            if (i < 0) return;
+
+            outgoingPassageBlockCount[i] = Mathf.Max(0, outgoingPassageBlockCount[i] + delta);
+        }
+
+        public bool BlocksOutgoingPassage(Vector2Int dir)
+        {
+            int i = CardinalDirIndex(dir);
+            return i >= 0 && outgoingPassageBlockCount[i] > 0;
+        }
 
         public int AddSurface(float surfaceHeight)
         {

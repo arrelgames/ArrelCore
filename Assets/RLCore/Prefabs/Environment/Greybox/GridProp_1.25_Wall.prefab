@@ -157,10 +157,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9802151e8dc1943748272347aa9fa544, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GridProp
-  baseSize: {x: 1, y: 1}
-  createsSurface: 1
+  baseSize: {x: 1, y: 0}
+  createsSurface: 0
   surfaceHeight: 1
-  propHeight: 1
+  propHeight: 4
   solid: 1
   soundSuppression: 0
   visionSuppression: 0
