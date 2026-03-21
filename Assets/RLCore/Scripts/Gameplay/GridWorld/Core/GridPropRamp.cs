@@ -32,7 +32,15 @@ namespace RLGames
             "Use SurfaceHeight 0 for a ramp from the first cell center upward. When disabled, deck uses pivot Y + PropHeight × t (ignores SurfaceHeight).")]
         [SerializeField] private bool alignDeckToVerticalCellCenters;
 
+        [Tooltip(
+            "If > 0, widens how close the ramp deck must be to an existing surface on the same tile to merge layers (meters). " +
+            "If 0, GridWorld uses a default from CellSizeY.")]
+        [SerializeField] private float deckSurfaceSnapEpsilon;
+
         public bool Filled => filled;
+
+        /// <summary>Authoring snap for merging deck with existing stack surfaces; 0 = GridWorld default only.</summary>
+        public float DeckSurfaceSnapEpsilon => deckSurfaceSnapEpsilon;
 
         public float DeckThickness => Mathf.Max(0.001f, deckThickness * AuthoringHeightScale);
 

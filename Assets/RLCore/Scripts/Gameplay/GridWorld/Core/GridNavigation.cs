@@ -153,8 +153,9 @@ namespace RLGames
         }
 
         /// <summary>
-        /// Lateral move to a lower surface must not pass through another surface in the target column
-        /// (e.g. floating deck above ground on the same tile).
+        /// Lateral move to a lower surface must not pass through another surface in the target column:
+        /// a slab between landing and departure heights, or any slab strictly above the departure
+        /// (e.g. floating deck above a slightly lower ramp lip still blocks falling to ground below).
         /// </summary>
         private static bool IntermediateSurfaceBlocksFall(
             GridStack stack, GridCell fromCell, GridCell toCell)
@@ -163,6 +164,7 @@ namespace RLGames
                 return false;
 
             const float eps = 0.05f;
+            bool isFall = fromCell.surfaceHeight > toCell.surfaceHeight + eps;
 
             for (int k = 0; k < stack.Cells.Count; k++)
             {
@@ -172,6 +174,9 @@ namespace RLGames
 
                 if (c.surfaceHeight > toCell.surfaceHeight + eps &&
                     c.surfaceHeight <= fromCell.surfaceHeight + eps)
+                    return true;
+
+                if (isFall && c.surfaceHeight > fromCell.surfaceHeight + eps)
                     return true;
             }
 

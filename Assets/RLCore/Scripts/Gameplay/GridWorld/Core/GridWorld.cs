@@ -250,6 +250,9 @@ namespace RLGames
 
             const float SURFACE_EPS = 0.001f;
             const float SURFACE_MATCH_EPS = 0.01f;
+            float deckMatchEps = Mathf.Max(SURFACE_MATCH_EPS, cellSizeY * 0.25f);
+            if (ramp.DeckSurfaceSnapEpsilon > 0f)
+                deckMatchEps = Mathf.Max(deckMatchEps, ramp.DeckSurfaceSnapEpsilon);
 
             float baseHeight = ramp.transform.position.y;
             bool needsRetry = false;
@@ -263,7 +266,7 @@ namespace RLGames
                     GridStack stack = EnsureStack(pos);
                     float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(x, y);
 
-                    int surfaceIndex = stack.FindSurfaceIndexNear(deckWorldY, SURFACE_MATCH_EPS);
+                    int surfaceIndex = stack.FindSurfaceIndexNear(deckWorldY, deckMatchEps);
                     if (surfaceIndex < 0)
                         surfaceIndex = stack.AddSurface(deckWorldY);
 
