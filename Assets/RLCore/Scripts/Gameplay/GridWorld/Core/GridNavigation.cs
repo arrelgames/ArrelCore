@@ -198,6 +198,9 @@ namespace RLGames
             if (grid.BlocksPassageOutgoing(pos, dirA) || grid.BlocksPassageOutgoing(pos, dirB))
                 return false;
 
+            if (grid.BlocksPassageOutgoing(pos + dirA, dirB) || grid.BlocksPassageOutgoing(pos + dirB, dirA))
+                return false;
+
             GridCell cellA = grid.GetStack(pos + dirA)?.GetCell(from.surface);
             GridCell cellB = grid.GetStack(pos + dirB)?.GetCell(from.surface);
 

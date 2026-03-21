@@ -128,18 +128,22 @@ namespace RLGames
             return stack != null && stack.BlocksOutgoingPassage(dir);
         }
 
+        /// <summary>
+        /// Cardinal step from a footprint tile toward the neighbor separated by the wall (thin axis).
+        /// Uses <b>-forward</b> on XZ so a default Unity mesh (forward +world Z) blocks grid (0,-1), i.e. the tile with lower grid Y / world Z — matching a wall on the south face of the footprint.
+        /// </summary>
         private static Vector2Int SnapForwardToCardinalGridStep(Transform t)
         {
-            Vector3 f = t.forward;
+            Vector3 f = -t.forward;
             f.y = 0f;
             if (f.sqrMagnitude < 1e-6f)
             {
-                f = t.right;
+                f = -t.right;
                 f.y = 0f;
             }
 
             if (f.sqrMagnitude < 1e-6f)
-                return Vector2Int.up;
+                return Vector2Int.down;
 
             f.Normalize();
 

@@ -21,8 +21,9 @@ namespace RLGames
         [SerializeField] private bool solid = false;
 
         [Tooltip(
-            "When solid: the tile stays walkable. Blocks cardinal passage across the face given by " +
-            "transform.forward projected on XZ (snapped to grid axes). Use for thin walls.")]
+            "When solid: the tile stays walkable. Blocks the cardinal edge from this footprint toward the " +
+            "neighbor in the direction of **-transform.forward** on XZ (snapped to grid axes). Default Unity " +
+            "forward (+Z) blocks the neighbor with lower grid Y (world -Z). Rotate Y 180° to flip.")]
         [SerializeField] private bool passageBlockingSolid;
 
         [Range(0, 1)]
