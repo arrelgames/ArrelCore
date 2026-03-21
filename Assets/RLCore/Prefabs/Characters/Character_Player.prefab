@@ -529,6 +529,30 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100001, guid: f15f0a8e7a3b54a95ae9e8ea0373fe05, type: 2}
+    - target: {fileID: 8986334197984471071, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: fireRate
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9208410165744670962, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: recoilKick.y
+      value: -0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 9208410165744670962, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: recoilKick.z
+      value: -0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 9208410165744670962, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: recoilRotKick.x
+      value: -3
+      objectReference: {fileID: 0}
+    - target: {fileID: 9208410165744670962, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: recoilRandomRange.y
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: 9208410165744670962, guid: 612c33b43ec794374adfc7cd47ff1c08, type: 3}
+      propertyPath: recoilRandomRange.z
+      value: 0.015
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
