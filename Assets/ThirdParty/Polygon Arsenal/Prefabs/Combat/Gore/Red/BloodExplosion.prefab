@@ -4853,10 +4853,12 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -4945,7 +4947,7 @@ Transform:
   - {fileID: 4780543669525006}
   - {fileID: 4357395012778364}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
 --- !u!198 &198222352082139578
 ParticleSystem:
   m_ObjectHideFlags: 0
@@ -9775,10 +9777,12 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -10071,7 +10075,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 0.4044118, g: 0.0627451, b: 0.0627451, a: 1}
+      maxColor: {r: 0.6603774, g: 0.40183342, b: 0.40183342, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -14692,6 +14696,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:

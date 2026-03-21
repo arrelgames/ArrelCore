@@ -43,7 +43,7 @@ RenderSettings:
 LightmapSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 13
-  m_BakeOnSceneLoad: 1
+  m_BakeOnSceneLoad: 0
   m_GISettings:
     serializedVersion: 2
     m_BounceScale: 1
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 5c4fb0d2967252142854c33c11e6aff9, type: 2}
+  m_LightingDataAsset: {fileID: 0}
   m_LightingSettings: {fileID: 144196460}
 --- !u!196 &4
 NavMeshSettings:
@@ -2244,6 +2244,34 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 622906632}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &643031354 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3168730392114890697, guid: 4a8f60a99223811418389d6ecd87b054, type: 3}
+  m_PrefabInstance: {fileID: 3168730392702476581}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &643031355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 643031354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Version: 3
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_LightLayerMask: 1
+  m_RenderingLayers: 1
+  m_CustomShadowLayers: 0
+  m_ShadowLayerMask: 1
+  m_ShadowRenderingLayers: 1
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
 --- !u!1 &675902076
 GameObject:
   m_ObjectHideFlags: 0
@@ -4142,9 +4170,33 @@ PrefabInstance:
       propertyPath: 'projectiles.Array.data[115]'
       value: 
       objectReference: {fileID: 1587250918974726, guid: 2d34a9cd541087248be12d36a5b9881a, type: 3}
+    - target: {fileID: 198533914545745608, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: ringBufferMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 198739927599685696, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: ringBufferMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 198916767956692054, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: ringBufferMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 199513794700050170, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 199790857171085796, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 199968412940335906, guid: b1a835a7561791f46bc1665850178b57, type: 3}
       propertyPath: m_EnableGPUInstancing
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 199968412940335906, guid: b1a835a7561791f46bc1665850178b57, type: 3}
+      propertyPath: m_Materials.Array.size
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7422,7 +7474,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3168730392114890697, guid: 4a8f60a99223811418389d6ecd87b054, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 643031355}
   m_SourcePrefab: {fileID: 100100000, guid: 4a8f60a99223811418389d6ecd87b054, type: 3}
 --- !u!1001 &3428908476828100628
 PrefabInstance:

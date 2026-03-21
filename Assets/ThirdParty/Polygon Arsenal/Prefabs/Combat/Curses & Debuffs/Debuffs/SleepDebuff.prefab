@@ -116,7 +116,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.7
+      scalar: 1
       minScalar: 0.15
       maxCurve:
         serializedVersion: 2
@@ -169,7 +169,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.1
+      scalar: 0.4
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -663,7 +663,7 @@ ParticleSystem:
         m_RotationOrder: 4
   ShapeModule:
     serializedVersion: 6
-    enabled: 1
+    enabled: 0
     type: 4
     angle: 0
     length: 5
@@ -1034,7 +1034,7 @@ ParticleSystem:
       repeatInterval: 0.01
       probability: 1
   SizeModule:
-    enabled: 0
+    enabled: 1
     curve:
       serializedVersion: 2
       minMaxState: 1
@@ -1421,7 +1421,7 @@ ParticleSystem:
       maxGradient:
         serializedVersion: 2
         key0: {r: 0.39999998, g: 0.6483903, b: 1, a: 0}
-        key1: {r: 0.7294118, g: 0.89446837, b: 1, a: 0.92783505}
+        key1: {r: 0.3915094, g: 0.6392613, b: 1, a: 0.92783505}
         key2: {r: 0.39999998, g: 0.6483903, b: 1, a: 0}
         key3: {r: 0.4009434, g: 0.831853, b: 1, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -1445,7 +1445,7 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: -1
+        m_ColorSpace: 0
         m_NumColorKeys: 3
         m_NumAlphaKeys: 3
       minGradient:
@@ -9979,7 +9979,7 @@ ParticleSystem:
   simulationSpeed: 1
   stopAction: 0
   cullingMode: 3
-  ringBufferMode: 1
+  ringBufferMode: 0
   ringBufferLoopRange: {x: 0, y: 1}
   emitterVelocityMode: 0
   looping: 1
@@ -10538,7 +10538,7 @@ ParticleSystem:
         m_RotationOrder: 4
     randomizeRotationDirection: 0
     gravitySource: 0
-    maxNumParticles: 1
+    maxNumParticles: 1000
     customEmitterVelocity: {x: 0, y: 0, z: 0}
     size3D: 0
     rotation3D: 0

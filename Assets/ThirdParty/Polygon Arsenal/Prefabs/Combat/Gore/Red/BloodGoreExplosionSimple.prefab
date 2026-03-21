@@ -4853,10 +4853,12 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -9853,11 +9855,13 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: d2b8cad406ffe9b4eb56e36960c52de6, type: 2}
-  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9945,7 +9949,7 @@ Transform:
   - {fileID: 8935486846141784101}
   - {fileID: 3046853574059320801}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
 --- !u!198 &1938389575172227757
 ParticleSystem:
   m_ObjectHideFlags: 0
@@ -14775,10 +14779,12 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   - {fileID: 2100000, guid: 6da7e584c6c676c42baf97788cd19ad8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0

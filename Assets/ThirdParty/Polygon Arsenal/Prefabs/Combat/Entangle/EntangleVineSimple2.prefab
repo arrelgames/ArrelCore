@@ -1384,8 +1384,8 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 1, g: 1, b: 1, a: 1}
-        key1: {r: 0.49711055, g: 1, b: 0.27058828, a: 1}
+        key0: {r: 0.6651584, g: 0.75, b: 0.48529413, a: 1}
+        key1: {r: 0.37328768, g: 0.75, b: 0.20205478, a: 1}
         key2: {r: 0.37753615, g: 0.4627451, b: 0.13333336, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -1393,7 +1393,7 @@ ParticleSystem:
         key6: {r: 0, g: 0, b: 0, a: 0}
         key7: {r: 0, g: 0, b: 0, a: 0}
         ctime0: 0
-        ctime1: 21273
+        ctime1: 22996
         ctime2: 65535
         ctime3: 0
         ctime4: 0
@@ -1409,7 +1409,7 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: -1
+        m_ColorSpace: 0
         m_NumColorKeys: 3
         m_NumAlphaKeys: 2
       minGradient:
@@ -4862,6 +4862,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -9771,6 +9774,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -14761,6 +14767,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -14843,7 +14852,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4502760867570134061}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071068}
+  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -14854,7 +14863,7 @@ Transform:
   - {fileID: 4500847303725233237}
   - {fileID: 151441524572846372}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
 --- !u!198 &4375571408008603111
 ParticleSystem:
   m_ObjectHideFlags: 0
@@ -16326,7 +16335,7 @@ ParticleSystem:
         key0: {r: 0.8982118, g: 1, b: 0.4575472, a: 1}
         key1: {r: 0.6340482, g: 0.78039217, b: 0.21960782, a: 1}
         key2: {r: 0.26312724, g: 0.6415094, b: 0.04538981, a: 0}
-        key3: {r: 0.29411766, g: 0.21114303, b: 0.039215684, a: 0}
+        key3: {r: 0.1980954, g: 0.2924528, b: 0.056559265, a: 0}
         key4: {r: 0.29411766, g: 0.21114303, b: 0.039215684, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
         key6: {r: 0, g: 0, b: 0, a: 0}
@@ -16334,7 +16343,7 @@ ParticleSystem:
         ctime0: 0
         ctime1: 6062
         ctime2: 12810
-        ctime3: 65535
+        ctime3: 38065
         ctime4: 65535
         ctime5: 0
         ctime6: 0
@@ -16348,8 +16357,8 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: -1
-        m_NumColorKeys: 4
+        m_ColorSpace: 0
+        m_NumColorKeys: 5
         m_NumAlphaKeys: 2
       minGradient:
         serializedVersion: 2
@@ -19806,6 +19815,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -21246,8 +21258,8 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 1, g: 1, b: 1, a: 1}
-        key1: {r: 0.49711055, g: 1, b: 0.27058828, a: 1}
+        key0: {r: 0.6651584, g: 0.75, b: 0.48529413, a: 1}
+        key1: {r: 0.37328768, g: 0.75, b: 0.20205478, a: 1}
         key2: {r: 0.37753615, g: 0.4627451, b: 0.13333336, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -21255,7 +21267,7 @@ ParticleSystem:
         key6: {r: 0, g: 0, b: 0, a: 0}
         key7: {r: 0, g: 0, b: 0, a: 0}
         ctime0: 0
-        ctime1: 21273
+        ctime1: 22996
         ctime2: 65535
         ctime3: 0
         ctime4: 0
@@ -21271,7 +21283,7 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: -1
+        m_ColorSpace: 0
         m_NumColorKeys: 3
         m_NumAlphaKeys: 2
       minGradient:
@@ -24724,6 +24736,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -26284,7 +26299,7 @@ ParticleSystem:
         key0: {r: 0.8982118, g: 1, b: 0.4575472, a: 1}
         key1: {r: 0.6340482, g: 0.78039217, b: 0.21960782, a: 1}
         key2: {r: 0.26312724, g: 0.6415094, b: 0.04538981, a: 0}
-        key3: {r: 0.29411766, g: 0.21114303, b: 0.039215684, a: 0}
+        key3: {r: 0.1980954, g: 0.2924528, b: 0.056559265, a: 0}
         key4: {r: 0.29411766, g: 0.21114303, b: 0.039215684, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
         key6: {r: 0, g: 0, b: 0, a: 0}
@@ -26292,7 +26307,7 @@ ParticleSystem:
         ctime0: 0
         ctime1: 6062
         ctime2: 12810
-        ctime3: 65535
+        ctime3: 38065
         ctime4: 65535
         ctime5: 0
         ctime6: 0
@@ -26306,8 +26321,8 @@ ParticleSystem:
         atime6: 0
         atime7: 0
         m_Mode: 0
-        m_ColorSpace: -1
-        m_NumColorKeys: 4
+        m_ColorSpace: 0
+        m_NumColorKeys: 5
         m_NumAlphaKeys: 2
       minGradient:
         serializedVersion: 2
@@ -29754,6 +29769,9 @@ ParticleSystemRenderer:
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
