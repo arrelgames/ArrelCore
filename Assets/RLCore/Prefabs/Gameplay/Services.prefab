@@ -134,7 +134,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 243d0b909902e4d59994a55e9efd5d85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GridWorld
-  enableDebugLogs: 1
+  cellSizeXZ: 1.25
+  cellSizeY: 1
 --- !u!1 &5840490014056129070
 GameObject:
   m_ObjectHideFlags: 0
