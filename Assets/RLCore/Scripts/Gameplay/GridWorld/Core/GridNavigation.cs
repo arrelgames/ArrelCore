@@ -14,6 +14,9 @@ namespace RLGames
         private const float MAX_DROP = 2.5f;
         private const float AGENT_HEIGHT = 1.8f;
 
+        /// <summary>Height delta above which a climb edge should request jump (shallow ramps stay walk).</summary>
+        private const float JUMP_REQUEST_MIN_STEP = 0.45f;
+
         public GridNavigation(GridWorld grid)
         {
             this.grid = grid;
@@ -75,11 +78,13 @@ namespace RLGames
 
                     bool isClimb = delta > 0.05f;
                     bool isFall = delta < -0.05f;
+                    bool requestsJump = (isClimb && delta > JUMP_REQUEST_MIN_STEP) ||
+                                         (isFall && delta < -JUMP_REQUEST_MIN_STEP);
 
                     GridNode target = new GridNode(targetPos.x, targetPos.y, i);
                     float cost = GridUtilities.GetCost(pos, targetPos);
 
-                    result.Add(new GridEdge(target, cost, isClimb, isFall));
+                    result.Add(new GridEdge(target, cost, isClimb, isFall, requestsJump));
                 }
             }
         }
@@ -111,11 +116,13 @@ namespace RLGames
 
                     bool isClimb = delta > 0.05f;
                     bool isFall = delta < -0.05f;
+                    bool requestsJump = (isClimb && delta > JUMP_REQUEST_MIN_STEP) ||
+                                         (isFall && delta < -JUMP_REQUEST_MIN_STEP);
 
                     GridNode target = new GridNode(targetPos.x, targetPos.y, i);
                     float cost = GridUtilities.GetCost(pos, targetPos);
 
-                    result.Add(new GridEdge(target, cost, isClimb, isFall));
+                    result.Add(new GridEdge(target, cost, isClimb, isFall, requestsJump));
                 }
             }
         }

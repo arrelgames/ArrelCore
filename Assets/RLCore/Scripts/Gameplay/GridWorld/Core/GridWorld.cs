@@ -26,6 +26,9 @@ namespace RLGames
         // remain ineffective unless we retry later.
         private readonly List<GridProp> pendingSolidProps = new();
 
+        private readonly List<GridPropRamp> pendingFilledRampProps = new();
+        private readonly HashSet<GridPropRamp> registeredRamps = new();
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -124,6 +127,12 @@ namespace RLGames
 
         public void RegisterProp(GridProp prop)
         {
+            if (prop is GridPropRamp ramp)
+            {
+                RegisterRampProp(ramp);
+                return;
+            }
+
             Vector2Int origin = prop.GetOrigin();
             Vector2Int size = prop.Size;
 
@@ -225,12 +234,229 @@ namespace RLGames
             if (prop.CreatesSurface && pendingSolidProps.Count > 0)
                 TryAttachPendingSolidProps();
 
+            if (prop.CreatesSurface && pendingFilledRampProps.Count > 0)
+                TryAttachPendingRampProps();
+
             UpdateDirtyNavigation();
+        }
+
+        private void RegisterRampProp(GridPropRamp ramp)
+        {
+            pendingFilledRampProps.Remove(ramp);
+            registeredRamps.Add(ramp);
+
+            Vector2Int origin = ramp.GetOrigin();
+            Vector2Int size = ramp.Size;
+
+            const float SURFACE_EPS = 0.001f;
+            const float SURFACE_MATCH_EPS = 0.01f;
+
+            float baseHeight = ramp.transform.position.y;
+            bool needsRetry = false;
+            bool isFilled = ramp.Filled;
+
+            for (int x = origin.x; x < origin.x + size.x; x++)
+            {
+                for (int y = origin.y; y < origin.y + size.y; y++)
+                {
+                    Vector2Int pos = new Vector2Int(x, y);
+                    GridStack stack = EnsureStack(pos);
+                    float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(x, y);
+
+                    int surfaceIndex = stack.FindSurfaceIndexNear(deckWorldY, SURFACE_MATCH_EPS);
+                    if (surfaceIndex < 0)
+                        surfaceIndex = stack.AddSurface(deckWorldY);
+
+                    GridCell deckCell = stack.GetCell(surfaceIndex);
+
+                    if (!isFilled && deckCell != null)
+                        deckCell.AddProp(ramp);
+
+                    if (isFilled)
+                    {
+                        bool foundBlockedSurface = false;
+
+                        for (int s = 0; s < stack.Cells.Count; s++)
+                        {
+                            GridCell cell = stack.GetCell(s);
+                            if (cell == null) continue;
+
+                            float h = cell.surfaceHeight;
+                            bool inBlockedRange = h >= baseHeight - SURFACE_EPS && h < deckWorldY - SURFACE_EPS;
+                            if (!inBlockedRange)
+                                continue;
+
+                            foundBlockedSurface = true;
+
+                            bool alreadyOccupied = false;
+                            foreach (var occupied in ramp.OccupiedCells)
+                            {
+                                if (occupied == cell)
+                                {
+                                    alreadyOccupied = true;
+                                    break;
+                                }
+                            }
+
+                            if (!alreadyOccupied)
+                                cell.AddProp(ramp);
+                        }
+
+                        if (!foundBlockedSurface)
+                            needsRetry = true;
+                    }
+
+                    MarkDirty(pos);
+                }
+            }
+
+            if (needsRetry && isFilled && !pendingFilledRampProps.Contains(ramp))
+                pendingFilledRampProps.Add(ramp);
+
+            for (int x = origin.x; x < origin.x + size.x; x++)
+            {
+                for (int y = origin.y; y < origin.y + size.y; y++)
+                    RecomputeStackCeilings(new Vector2Int(x, y));
+            }
+
+            TryAttachPendingSolidProps();
+            TryAttachPendingRampProps();
+
+            UpdateDirtyNavigation();
+        }
+
+        private void RecomputeStackCeilings(Vector2Int pos)
+        {
+            GridStack stack = GetStack(pos);
+            if (stack == null) return;
+
+            const float SURFACE_EPS = 0.001f;
+            float defaultCeilingDelta = cellSizeY * 4f;
+
+            for (int s = 0; s < stack.Cells.Count; s++)
+            {
+                GridCell cell = stack.GetCell(s);
+                if (cell == null) continue;
+                cell.ceilingHeight = cell.surfaceHeight + defaultCeilingDelta;
+            }
+
+            foreach (var ramp in registeredRamps)
+            {
+                if (ramp == null) continue;
+
+                Vector2Int ro = ramp.GetOrigin();
+                Vector2Int rs = ramp.Size;
+                if (pos.x < ro.x || pos.x >= ro.x + rs.x || pos.y < ro.y || pos.y >= ro.y + rs.y)
+                    continue;
+
+                if (ramp.Filled)
+                    continue;
+
+                float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(pos.x, pos.y);
+                float underside = deckWorldY - ramp.DeckThickness;
+
+                for (int s = 0; s < stack.Cells.Count; s++)
+                {
+                    GridCell cell = stack.GetCell(s);
+                    if (cell == null) continue;
+
+                    if (cell.surfaceHeight < deckWorldY - SURFACE_EPS)
+                        cell.ceilingHeight = Mathf.Min(cell.ceilingHeight, underside);
+                }
+            }
+        }
+
+        private void TryAttachPendingRampProps()
+        {
+            if (pendingFilledRampProps.Count == 0)
+                return;
+
+            const float SURFACE_EPS = 0.001f;
+
+            for (int i = pendingFilledRampProps.Count - 1; i >= 0; i--)
+            {
+                GridPropRamp ramp = pendingFilledRampProps[i];
+
+                Vector2Int origin = ramp.GetOrigin();
+                Vector2Int size = ramp.Size;
+
+                float baseHeight = ramp.transform.position.y;
+
+                bool stillMissingSomeTiles = false;
+
+                for (int x = origin.x; x < origin.x + size.x; x++)
+                {
+                    for (int y = origin.y; y < origin.y + size.y; y++)
+                    {
+                        Vector2Int pos = new Vector2Int(x, y);
+                        GridStack stack = GetStack(pos);
+
+                        if (stack == null || stack.Cells.Count == 0)
+                        {
+                            stillMissingSomeTiles = true;
+                            continue;
+                        }
+
+                        float deckWorldY = ramp.GetDeckWorldYAtWorldGrid(x, y);
+
+                        bool foundBlockedSurface = false;
+
+                        for (int s = 0; s < stack.Cells.Count; s++)
+                        {
+                            GridCell cell = stack.GetCell(s);
+                            if (cell == null) continue;
+
+                            float h = cell.surfaceHeight;
+                            bool inBlockedRange = h >= baseHeight - SURFACE_EPS && h < deckWorldY - SURFACE_EPS;
+                            if (!inBlockedRange)
+                                continue;
+
+                            foundBlockedSurface = true;
+
+                            bool alreadyOccupied = false;
+                            foreach (var occupied in ramp.OccupiedCells)
+                            {
+                                if (occupied == cell)
+                                {
+                                    alreadyOccupied = true;
+                                    break;
+                                }
+                            }
+
+                            if (!alreadyOccupied)
+                            {
+                                cell.AddProp(ramp);
+                                MarkDirty(pos);
+                            }
+                        }
+
+                        if (!foundBlockedSurface)
+                            stillMissingSomeTiles = true;
+                    }
+                }
+
+                if (!stillMissingSomeTiles)
+                {
+                    pendingFilledRampProps.RemoveAt(i);
+
+                    for (int x = origin.x; x < origin.x + size.x; x++)
+                    {
+                        for (int y = origin.y; y < origin.y + size.y; y++)
+                            RecomputeStackCeilings(new Vector2Int(x, y));
+                    }
+                }
+            }
         }
 
         public void UnregisterProp(GridProp prop)
         {
             pendingSolidProps.Remove(prop);
+
+            if (prop is GridPropRamp rampUnregister)
+            {
+                pendingFilledRampProps.Remove(rampUnregister);
+                registeredRamps.Remove(rampUnregister);
+            }
 
             // Remove from all cells
             foreach (var cell in prop.OccupiedCells)
@@ -248,7 +474,10 @@ namespace RLGames
             {
                 for (int y = origin.y; y < origin.y + size.y; y++)
                 {
-                    MarkDirty(new Vector2Int(x, y));
+                    Vector2Int p = new Vector2Int(x, y);
+                    MarkDirty(p);
+                    if (prop is GridPropRamp)
+                        RecomputeStackCeilings(p);
                 }
             }
 

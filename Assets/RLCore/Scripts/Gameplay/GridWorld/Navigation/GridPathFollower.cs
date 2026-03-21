@@ -200,7 +200,7 @@ namespace RLGames
                 {
                     if (edge.target.Equals(nextNode))
                     {
-                        JumpRequested = edge.isClimb || edge.isFall;
+                        JumpRequested = edge.requestsJump;
                         break;
                     }
                 }

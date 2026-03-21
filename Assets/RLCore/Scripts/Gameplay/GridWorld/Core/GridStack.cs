@@ -52,5 +52,17 @@ namespace RLGames
 
             return best;
         }
+
+        /// <summary>Returns surface index if one exists within eps of the height, else -1.</summary>
+        public int FindSurfaceIndexNear(float surfaceHeight, float eps = 0.01f)
+        {
+            for (int i = 0; i < cells.Count; i++)
+            {
+                if (UnityEngine.Mathf.Abs(cells[i].surfaceHeight - surfaceHeight) <= eps)
+                    return i;
+            }
+
+            return -1;
+        }
     }
 }

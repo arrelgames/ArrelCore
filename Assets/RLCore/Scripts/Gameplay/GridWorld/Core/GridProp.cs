@@ -76,6 +76,15 @@ namespace RLGames
             Size = new Vector2Int(sx, sy);
         }
 
+        /// <summary>
+        /// World-space multiplier for serialized vertical offsets (surfaceHeight, propHeight).
+        /// Matches how footprint uses localScale on X/Z; uses lossyScale so parent scale is respected.
+        /// </summary>
+        protected float AuthoringHeightScale => Mathf.Abs(transform.lossyScale.y);
+
+        /// <summary>Serialized surfaceHeight converted to world offset along local up (scaled).</summary>
+        protected float ScaledAuthoringSurfaceOffset => surfaceHeight * AuthoringHeightScale;
+
         public Vector2Int GetOrigin()
         {
             Vector3 pos = transform.position;
@@ -84,12 +93,12 @@ namespace RLGames
 
         public float GetSurfaceWorldHeight()
         {
-            return transform.position.y + surfaceHeight;
+            return transform.position.y + surfaceHeight * AuthoringHeightScale;
         }
 
         public float GetTopWorldHeight()
         {
-            return transform.position.y + propHeight;
+            return transform.position.y + propHeight * AuthoringHeightScale;
         }
     }
 }

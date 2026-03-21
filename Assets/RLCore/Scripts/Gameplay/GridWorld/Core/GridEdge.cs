@@ -11,12 +11,18 @@ namespace RLGames
         public bool isClimb;
         public bool isFall;
 
-        public GridEdge(GridNode target, float cost, bool isClimb = false, bool isFall = false)
+        /// <summary>
+        /// When false, path followers should treat the edge as a walkable slope (no jump input).
+        /// </summary>
+        public bool requestsJump;
+
+        public GridEdge(GridNode target, float cost, bool isClimb = false, bool isFall = false, bool requestsJump = true)
         {
             this.target = target;
             this.cost = cost;
             this.isClimb = isClimb;
             this.isFall = isFall;
+            this.requestsJump = requestsJump;
         }
 
         public override string ToString()

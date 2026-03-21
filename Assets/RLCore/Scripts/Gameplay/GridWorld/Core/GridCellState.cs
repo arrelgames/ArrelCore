@@ -37,7 +37,7 @@ namespace RLGames
 
             foreach (var p in props)
             {
-                if (p.Solid)
+                if (p.Solid || p is GridPropRamp { Filled: true })
                     blocksMovement = true;
 
                 soundSuppression = Mathf.Max(soundSuppression, p.SoundSuppression);
