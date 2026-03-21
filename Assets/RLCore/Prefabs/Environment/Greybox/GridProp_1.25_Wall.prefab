@@ -162,6 +162,7 @@ MonoBehaviour:
   surfaceHeight: 1
   propHeight: 4
   solid: 1
+  passageBlockingSolid: 1
   soundSuppression: 0
   visionSuppression: 0
 --- !u!1 &7588184239092508466
