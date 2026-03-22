@@ -8,6 +8,11 @@ namespace RLGames
         [Header("Grid Footprint")]
         [SerializeField] private Vector2Int baseSize = Vector2Int.one;
 
+        [Tooltip(
+            "When enabled, registration uses the transform position snapped to the nearest Cell Size XZ / Cell Size Y " +
+            "increments (see GridWorld.SnapWorldPositionToGridIncrements). When disabled, uses the raw transform.")]
+        [SerializeField] private bool roundGridPosition = true;
+
         [Header("Surface Creation")]
         [SerializeField] private bool createsSurface = false;
 
@@ -37,6 +42,8 @@ namespace RLGames
 
         public bool PassageBlockingSolid => passageBlockingSolid;
 
+        public bool RoundGridPosition => roundGridPosition;
+
         public float SurfaceHeight => surfaceHeight;
         public float PropHeight => propHeight;
 
@@ -56,6 +63,13 @@ namespace RLGames
             if (GridWorld.Instance != null)
                 GridWorld.Instance.RegisterProp(this);
         }
+
+#if UNITY_EDITOR
+        private void Reset()
+        {
+            roundGridPosition = true;
+        }
+#endif
 
         private void OnDestroy()
         {
@@ -101,18 +115,38 @@ namespace RLGames
         protected float ScaledAuthoringSurfaceOffset => surfaceHeight * AuthoringHeightScale;
 
         /// <summary>
-        /// Pivot cell (world position); footprint tiles may extend outside this AABB when rotated.
-        /// Registration uses <see cref="EnumerateOccupiedGridCells"/> for actual coverage.
+        /// World position used for grid registration and footprint when <see cref="RoundGridPosition"/> is on:
+        /// X/Z rounded to nearest <see cref="GridWorld.CellSizeXZ"/>, Y to nearest <see cref="GridWorld.CellSizeY"/>.
+        /// Otherwise the raw transform position.
+        /// </summary>
+        public Vector3 GetRegistrationWorldPosition()
+        {
+            Vector3 t = transform.position;
+            if (!roundGridPosition)
+                return t;
+
+            GridWorld gw = GridWorld.Instance;
+            if (gw == null)
+                return new Vector3(Mathf.Round(t.x), Mathf.Round(t.y), Mathf.Round(t.z));
+
+            return gw.SnapWorldPositionToGridIncrements(t);
+        }
+
+        /// <summary>
+        /// Grid cell from <see cref="GridWorld.WorldToGridXZ"/> of <see cref="GetRegistrationWorldPosition"/>.
         /// </summary>
         public Vector2Int GetOrigin()
         {
-            Vector3 pos = transform.position;
-            return GridWorld.Instance != null
-                ? GridWorld.Instance.WorldToGridXZ(pos)
-                : new Vector2Int(
-                    Mathf.FloorToInt(pos.x),
-                    Mathf.FloorToInt(pos.z));
+            GridWorld gw = GridWorld.Instance;
+            Vector3 r = GetRegistrationWorldPosition();
+            if (gw != null)
+                return gw.WorldToGridXZ(r);
+
+            return new Vector2Int(Mathf.FloorToInt(r.x), Mathf.FloorToInt(r.z));
         }
+
+        /// <summary>World pivot for footprint parallelogram (same as <see cref="GetRegistrationWorldPosition"/>).</summary>
+        protected Vector3 GetFootprintPivotWorld() => GetRegistrationWorldPosition();
 
         /// <summary>
         /// Full edge vectors in world space from pivot along local +X and +Z (rotation only; tile counts in <see cref="Size"/>).
@@ -144,7 +178,7 @@ namespace RLGames
             }
 
             float cs = gw.CellSizeXZ;
-            Vector3 p = transform.position;
+            Vector3 p = GetFootprintPivotWorld();
             Vector2 p0 = new Vector2(p.x, p.z);
             GetFootprintEdgeVectorsWorld(out Vector3 ex3, out Vector3 ez3);
             Vector2 ex = new Vector2(ex3.x, ex3.z);
@@ -197,7 +231,7 @@ namespace RLGames
             }
 
             float cs = gw.CellSizeXZ;
-            Vector3 p = transform.position;
+            Vector3 p = GetFootprintPivotWorld();
             Vector2 p0 = new Vector2(p.x, p.z);
             GetFootprintEdgeVectorsWorld(out Vector3 ex3, out Vector3 ez3);
             Vector2 ex = new Vector2(ex3.x, ex3.z);
@@ -263,12 +297,12 @@ namespace RLGames
 
         public float GetSurfaceWorldHeight()
         {
-            return transform.position.y + surfaceHeight * AuthoringHeightScale;
+            return GetRegistrationWorldPosition().y + surfaceHeight * AuthoringHeightScale;
         }
 
         public float GetTopWorldHeight()
         {
-            return transform.position.y + propHeight * AuthoringHeightScale;
+            return GetRegistrationWorldPosition().y + propHeight * AuthoringHeightScale;
         }
     }
 }

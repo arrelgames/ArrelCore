@@ -73,7 +73,7 @@ namespace RLGames
                 ? gw.GridToWorldXZ(new Vector2Int(gridX, gridY))
                 : new Vector3((gridX + 0.5f) * cs, 0f, (gridY + 0.5f) * cs);
 
-            Vector3 d = cellCenter - transform.position;
+            Vector3 d = cellCenter - GetFootprintPivotWorld();
             GetFootprintEdgeVectorsWorld(out Vector3 ex, out Vector3 ez);
 
             float lx = Vector3.Dot(d, ex.normalized) / cs;
@@ -112,7 +112,7 @@ namespace RLGames
             if (alignDeckToVerticalCellCenters && GridWorld.Instance != null)
             {
                 float cy = GridWorld.Instance.CellSizeY;
-                float baseWorld = transform.position.y + ScaledAuthoringSurfaceOffset;
+                float baseWorld = GetRegistrationWorldPosition().y + ScaledAuthoringSurfaceOffset;
                 float yLow = baseWorld + 0.5f * cy;
                 float yHigh = baseWorld + propWorld - 0.5f * cy;
                 if (yHigh < yLow)
@@ -120,7 +120,7 @@ namespace RLGames
                 return Mathf.Lerp(yLow, yHigh, t);
             }
 
-            return transform.position.y + propWorld * t;
+            return GetRegistrationWorldPosition().y + propWorld * t;
         }
 
         private RampAxisMode ResolveAxis(Vector2Int sz)

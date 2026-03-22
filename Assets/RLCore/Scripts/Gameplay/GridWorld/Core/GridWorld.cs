@@ -50,6 +50,33 @@ namespace RLGames
             return new Vector2Int(gx, gy);
         }
 
+        /// <summary>
+        /// Rounds world X/Z to the nearest <see cref="CellSizeXZ"/> and Y to the nearest <see cref="CellSizeY"/>.
+        /// Used when <see cref="GridProp"/> <c>Round Grid Position</c> is enabled.
+        /// </summary>
+        public Vector3 SnapWorldPositionToGridIncrements(Vector3 worldPos)
+        {
+            return new Vector3(
+                SnapToIncrement(worldPos.x, cellSizeXZ),
+                SnapToIncrement(worldPos.y, cellSizeY),
+                SnapToIncrement(worldPos.z, cellSizeXZ));
+        }
+
+        private static float SnapToIncrement(float value, float step)
+        {
+            if (step <= 1e-8f)
+                return value;
+            return Mathf.Round(value / step) * step;
+        }
+
+        /// <summary>Cell whose XZ center is closest to <paramref name="worldPos"/> (ties round up in Mathf space).</summary>
+        public Vector2Int WorldToGridXZNearest(Vector3 worldPos)
+        {
+            int gx = Mathf.RoundToInt(worldPos.x / cellSizeXZ - 0.5f);
+            int gy = Mathf.RoundToInt(worldPos.z / cellSizeXZ - 0.5f);
+            return new Vector2Int(gx, gy);
+        }
+
         public Vector3 GridToWorldXZ(Vector2Int gridPos)
         {
             return new Vector3(
@@ -183,7 +210,7 @@ namespace RLGames
 
             const float SURFACE_EPS = 0.001f;
 
-            float baseHeight = prop.transform.position.y;
+            float baseHeight = prop.GetRegistrationWorldPosition().y;
             float topHeight = prop.GetSurfaceWorldHeight();
             bool isSolid = prop.Solid;
 
@@ -295,7 +322,7 @@ namespace RLGames
             if (ramp.DeckSurfaceSnapEpsilon > 0f)
                 deckMatchEps = Mathf.Max(deckMatchEps, ramp.DeckSurfaceSnapEpsilon);
 
-            float baseHeight = ramp.transform.position.y;
+            float baseHeight = ramp.GetRegistrationWorldPosition().y;
             bool needsRetry = false;
             bool isFilled = ramp.Filled;
 
@@ -412,7 +439,7 @@ namespace RLGames
             {
                 GridPropRamp ramp = pendingFilledRampProps[i];
 
-                float baseHeight = ramp.transform.position.y;
+                float baseHeight = ramp.GetRegistrationWorldPosition().y;
 
                 bool stillMissingSomeTiles = false;
 
@@ -519,7 +546,7 @@ namespace RLGames
 
                 const float SURFACE_EPS = 0.001f;
 
-                float baseHeight = prop.transform.position.y;
+                float baseHeight = prop.GetRegistrationWorldPosition().y;
                 float topHeight = prop.GetSurfaceWorldHeight();
 
                 bool stillMissingSomeTiles = false;
