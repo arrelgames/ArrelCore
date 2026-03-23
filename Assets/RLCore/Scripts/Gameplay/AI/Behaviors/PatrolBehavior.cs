@@ -26,6 +26,7 @@ namespace RLGames
         private readonly Vector2Int patrolPointB;
 
         private readonly float waitDurationSeconds;
+        private readonly float movementInputScale;
 
         // Cache to avoid resetting the GridPathFollower every frame.
         private Vector2Int? lastRequestedTargetCell;
@@ -44,6 +45,7 @@ namespace RLGames
             Vector2Int patrolPointA,
             Vector2Int patrolPointB,
             float waitDurationSeconds = 1f,
+            float movementInputScale = 1f,
             int jumpHeight = 0)
         {
             this.unit = unit;
@@ -51,6 +53,7 @@ namespace RLGames
             this.patrolPointA = patrolPointA;
             this.patrolPointB = patrolPointB;
             this.waitDurationSeconds = waitDurationSeconds;
+            this.movementInputScale = Mathf.Clamp01(movementInputScale);
 
             // GridPathFollower currently owns movement intent and requests paths internally.
             // (turn/jump tuning from the old implementation is temporarily ignored.)
@@ -109,7 +112,7 @@ namespace RLGames
 
             TaskStatus moveStatus = pathFollower.Update();
 
-            CurrentMoveInput = pathFollower.CurrentMoveInput;
+            CurrentMoveInput = pathFollower.CurrentMoveInput * movementInputScale;
             JumpRequested = pathFollower.JumpRequested;
 
             if (DebugEnabled && Time.time >= nextDebugLogTime)

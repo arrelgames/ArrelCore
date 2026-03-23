@@ -8,6 +8,10 @@ namespace RLGames
         [SerializeField] private Vector2Int pointB = new Vector2Int(8, 0);
         [SerializeField] private float waitDurationSeconds = 1f;
 
+        [Header("Movement")]
+        [Tooltip("Scales patrol move input sent to the motor: 1 = full path-follow input, 0 = stand still.")]
+        [SerializeField] [Range(0f, 1f)] private float movementInputScale = 1f;
+
         protected override void BuildOptions()
         {
             var unit = GetComponent<Unit>();
@@ -23,7 +27,8 @@ namespace RLGames
                 grid,
                 pointA,
                 pointB,
-                waitDurationSeconds);
+                waitDurationSeconds,
+                movementInputScale);
 
             AddOption(new UtilityOption(
                 behavior,

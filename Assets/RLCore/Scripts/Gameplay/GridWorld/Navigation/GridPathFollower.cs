@@ -129,15 +129,26 @@ namespace RLGames
             if (repathTimer <= 0f && !isPathPending && currentPath != null)
             {
                 bool pathExhausted = currentPath == null || currentIndex >= currentPath.Count;
-                bool startMeaningfullyChanged = false;
-                if (hasLastRequestedStart && currentIndex < currentPath.Count)
+                // Closest cell can differ from currentPath[currentIndex] while legitimately moving between
+                // waypoints (e.g. still in (6,5) while steering toward (5,5)). Only repath when the agent
+                // is not on any node of the current path.
+                bool startNotOnPath = false;
+                if (hasLastRequestedStart && currentPath != null && currentIndex < currentPath.Count)
                 {
-                    startMeaningfullyChanged = !start.Equals(currentPath[currentIndex]);
+                    startNotOnPath = true;
+                    for (int k = 0; k < currentPath.Count; k++)
+                    {
+                        if (start.Equals(currentPath[k]))
+                        {
+                            startNotOnPath = false;
+                            break;
+                        }
+                    }
                 }
 
                 bool stuck = (Time.time - lastProgressTime) > STUCK_TIME;
 
-                if (pathExhausted || stuck || startMeaningfullyChanged)
+                if (pathExhausted || stuck || startNotOnPath)
                 {
                     RequestPath(start, destination.Value);
                     repathTimer = REPATHTIME;

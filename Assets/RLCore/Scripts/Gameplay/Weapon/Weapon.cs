@@ -12,7 +12,18 @@ namespace RLGames
         [SerializeField] private float damageAmount = 25f;
         [SerializeField] WeaponMeshController weaponMeshController;
 
+        [Header("Audio")]
+        [SerializeField] private AudioClip fireSound;
+        [SerializeField] private AudioSource fireAudioSource;
+        [SerializeField] [Range(0f, 1f)] private float fireSoundVolumeScale = 1f;
+
         private float lastFireTime;
+
+        private void Awake()
+        {
+            if (fireAudioSource == null)
+                fireAudioSource = GetComponent<AudioSource>();
+        }
 
         public bool CanFire()
         {
@@ -28,6 +39,9 @@ namespace RLGames
                 return;
 
             lastFireTime = Time.time;
+
+            if (fireSound != null && fireAudioSource != null)
+                fireAudioSource.PlayOneShot(fireSound, fireSoundVolumeScale);
 
             // Apply cosmetic recoil
             weaponMeshController?.ApplyRecoil();
