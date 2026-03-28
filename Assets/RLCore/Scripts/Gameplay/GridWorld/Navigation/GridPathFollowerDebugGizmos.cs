@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-#if false
-
 namespace RLGames
 {
     [ExecuteAlways]
@@ -11,6 +9,8 @@ namespace RLGames
         [Header("References")]
         [SerializeField] private GridWorld grid;
         [SerializeField] private Unit unit;
+        [Tooltip("Utility AI on this character (e.g. ZombieAiBrain). Used to read the active GridPathFollower.")]
+        [SerializeField] private UtilityAiBrain utilityBrain;
 
         [Header("Display")]
         [SerializeField] private bool drawPath = true;
@@ -36,8 +36,8 @@ namespace RLGames
             if (unit == null || grid == null)
                 return;
 
-            GridPathFollower follower = unit.GetPathFollower();
-            if (follower == null)
+            var brain = utilityBrain != null ? utilityBrain : unit.GetComponent<UtilityAiBrain>();
+            if (brain == null || !brain.TryGetDebugPathFollower(out GridPathFollower follower))
                 return;
 
             List<GridNode> path = follower.Debug_GetPath();
@@ -127,7 +127,7 @@ namespace RLGames
             if (!drawDirection) return;
 
             Vector3 pos = unit.transform.position;
-            Vector2 input = unit.GetPathFollower().CurrentMoveInput;
+            Vector2 input = unit.command.Move;
 
             Vector3 worldDir = unit.transform.TransformDirection(
                 new Vector3(input.x, 0f, input.y));
@@ -137,5 +137,3 @@ namespace RLGames
         }
     }
 }
-
-#endif

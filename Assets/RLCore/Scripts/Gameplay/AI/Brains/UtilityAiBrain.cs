@@ -86,5 +86,20 @@ namespace RLGames
         {
             options.Add(option);
         }
+
+        /// <summary>
+        /// When the active behavior owns a path follower (e.g. wander, chase, patrol), returns it for gizmos.
+        /// </summary>
+        public bool TryGetDebugPathFollower(out GridPathFollower follower)
+        {
+            follower = null;
+            if (currentOption?.Behavior is IDebugPathFollowerProvider provider)
+            {
+                follower = provider.DebugPathFollower;
+                return follower != null;
+            }
+
+            return false;
+        }
     }
 }

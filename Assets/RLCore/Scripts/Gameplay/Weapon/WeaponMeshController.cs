@@ -42,6 +42,10 @@ namespace RLGames
         [SerializeField] private float bobAmount = 0.03f;
         [Tooltip("Bob oscillation speed.")]
         [SerializeField] private float bobSpeed = 7f;
+        [Tooltip("Bob amplitude multiplier while sprinting.")]
+        [SerializeField] private float sprintBobAmountMultiplier = 1.35f;
+        [Tooltip("Bob speed multiplier while sprinting.")]
+        [SerializeField] private float sprintBobSpeedMultiplier = 1.15f;
         [Tooltip("Bob multiplier while aiming down sights.")]
         [SerializeField] private float adsBobMultiplier = 0.25f;
 
@@ -86,6 +90,7 @@ namespace RLGames
         private float bobTimer;
         private float breathTimer;
         private bool isADS;
+        private bool isSprinting;
 
         private void Awake()
         {
@@ -148,6 +153,7 @@ namespace RLGames
         private void DetectState()
         {
             isADS = unit != null && unit.command.Aim;
+            isSprinting = unit != null && unit.command.Sprint;
         }
 
         private Vector2 DetectRotationDelta()
@@ -223,11 +229,14 @@ namespace RLGames
 
             if (speed > 0.1f)
             {
-                bobTimer += Time.deltaTime * bobSpeed;
+                float sprintSpeedMult = isSprinting ? sprintBobSpeedMultiplier : 1f;
+                float sprintAmountMult = isSprinting ? sprintBobAmountMultiplier : 1f;
+
+                bobTimer += Time.deltaTime * bobSpeed * sprintSpeedMult;
                 float moveDir = Mathf.Sign(localVelocity.x);
 
-                float x = Mathf.Sin(bobTimer) * bobAmount * moveDir;
-                float y = Mathf.Cos(bobTimer * 2f) * bobAmount;
+                float x = Mathf.Sin(bobTimer) * bobAmount * sprintAmountMult * moveDir;
+                float y = Mathf.Cos(bobTimer * 2f) * bobAmount * sprintAmountMult;
 
                 float adsMult = isADS ? adsBobMultiplier : 1f;
                 bobOffset = new Vector3(x, y, 0f) * adsMult;

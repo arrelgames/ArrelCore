@@ -11,11 +11,18 @@ namespace RLGames
         [SerializeField] private float maxRange = 100f;
         [SerializeField] private float damageAmount = 25f;
         [SerializeField] WeaponMeshController weaponMeshController;
+        [Tooltip("Optional one-shot or looping muzzle flash; played each successful Fire().")]
+        [SerializeField] private ParticleSystem muzzleFlash;
+        [Tooltip("Maps hit collider Physics Material to impact prefab. If particle emission uses another axis, adjust the prefab or rotation here.")]
+        [SerializeField] private BulletImpactEffectLibrary impactLibrary;
 
         [Header("Audio")]
         [SerializeField] private AudioClip fireSound;
         [SerializeField] private AudioSource fireAudioSource;
         [SerializeField] [Range(0f, 1f)] private float fireSoundVolumeScale = 1f;
+
+        [Header("UI")]
+        [SerializeField] private FirstPersonCrosshair crosshair;
 
         private float lastFireTime;
 
@@ -39,6 +46,11 @@ namespace RLGames
                 return;
 
             lastFireTime = Time.time;
+
+            crosshair?.PlayFireKick();
+
+            if (muzzleFlash != null)
+                muzzleFlash.Play(withChildren: true);
 
             if (fireSound != null && fireAudioSource != null)
                 fireAudioSource.PlayOneShot(fireSound, fireSoundVolumeScale);
@@ -64,6 +76,16 @@ namespace RLGames
             Ray ray = new Ray(firePoint.position, firePoint.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, maxRange))
             {
+                if (impactLibrary != null)
+                {
+                    GameObject impactPrefab = impactLibrary.ResolvePrefab(hit.collider.sharedMaterial);
+                    if (impactPrefab != null)
+                    {
+                        Quaternion rotation = Quaternion.LookRotation(hit.normal);
+                        Instantiate(impactPrefab, hit.point, rotation);
+                    }
+                }
+
                 UnitStats targetStats = hit.collider.GetComponentInParent<UnitStats>();
                 if (targetStats != null && targetStats.IsAlive)
                 {

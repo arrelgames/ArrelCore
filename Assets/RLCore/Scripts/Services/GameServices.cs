@@ -23,7 +23,7 @@ namespace RLGames
 
         [Header("Game Services")]
         public CursorManager cursorManager;
-        // public AudioManager audioManager;
+        public AudioMixerController audioMixerController;
         // public SaveManager saveManager;
 
         // Add more service references as needed
@@ -34,7 +34,7 @@ namespace RLGames
         {
             // Optional: auto-initialize services if null
             if (cursorManager == null) cursorManager = GetComponent<CursorManager>();
-            // if (audioManager == null) audioManager = GetComponent<AudioManager>();
+            if (audioMixerController == null) audioMixerController = GetComponent<AudioMixerController>();
             // if (saveManager == null) saveManager = GetComponent<SaveManager>();
         }
     }

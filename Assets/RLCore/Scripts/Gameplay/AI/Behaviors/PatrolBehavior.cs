@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace RLGames
 {
-    public class PatrolBehavior : IBehavior, IMovementIntentProvider
+    public class PatrolBehavior : IBehavior, IMovementIntentProvider, IDebugPathFollowerProvider
     {
         private const bool DebugEnabled = true;
         private const float DebugLogIntervalSeconds = 1f;
@@ -38,6 +38,7 @@ namespace RLGames
 
         public Vector2 CurrentMoveInput { get; private set; }
         public bool JumpRequested { get; private set; }
+        public GridPathFollower DebugPathFollower => pathFollower;
 
         public PatrolBehavior(
             Unit unit,

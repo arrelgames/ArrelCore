@@ -10,7 +10,7 @@ namespace RLGames
         public static GridWorld Instance { get; private set; }
 
         [Header("Grid Dimensions")]
-        [SerializeField] private float cellSizeXZ = 1.5f;
+        [SerializeField] private float cellSizeXZ = 1.25f;
         [SerializeField] private float cellSizeY = 1.0f;
 
         public float CellSizeXZ => cellSizeXZ;

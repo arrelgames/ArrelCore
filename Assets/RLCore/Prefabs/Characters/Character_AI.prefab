@@ -12,8 +12,10 @@ GameObject:
   - component: {fileID: 1880123570351300595}
   - component: {fileID: 7138619445711181231}
   - component: {fileID: 9128013772537741128}
-  - component: {fileID: 1747691598281904245}
+  - component: {fileID: 4474432312529043194}
   - component: {fileID: 8844332211099887760}
+  - component: {fileID: 1872416170917198591}
+  - component: {fileID: 4490600491779005700}
   m_Layer: 0
   m_Name: Character_AI
   m_TagString: Untagged
@@ -81,6 +83,10 @@ MonoBehaviour:
   sprintForwardThreshold: 0
   jumpForce: 7
   gravity: -30
+  groundAcceleration: 50
+  groundDeceleration: 60
+  airAcceleration: 25
+  airDeceleration: 20
   cameraPivot: {fileID: 7160920371142608978}
 --- !u!114 &9128013772537741128
 MonoBehaviour:
@@ -97,7 +103,7 @@ MonoBehaviour:
   motor: {fileID: 7138619445711181231}
   weapon: {fileID: 0}
   stats: {fileID: 0}
---- !u!114 &1747691598281904245
+--- !u!114 &4474432312529043194
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -106,14 +112,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 6396240027438617782}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4159dbac6310846a6ad2ea8292c673a2, type: 3}
+  m_Script: {fileID: 11500000, guid: 5272bfdb5367240ee926b60c67dd9b88, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RLGames.PatrolAiBrain
-  switchThreshold: 0.1
-  stickinessBonus: 0.1
-  pointA: {x: 0, y: 0}
-  pointB: {x: 7, y: 7}
-  waitDurationSeconds: 1
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.UnitStats
+  teamNumber: 1
+  hpMax: 100
+  hpCurrent: 0
 --- !u!114 &8844332211099887760
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -134,7 +138,48 @@ MonoBehaviour:
   runSpeedReference: 8
   locomotionSmoothTime: 0.12
   useManualLocomotion: 0
-  manualLocomotionBlend: 0
+  manualLocomotionBlend: 1
+--- !u!114 &1872416170917198591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6396240027438617782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e1a6936d6e0c4163aa920dcf836d2b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.ZombieAiBrain
+  switchThreshold: 0.1
+  stickinessBonus: 0.1
+  chaseDetectionRadius: 12
+  enemyPickInterval: 0.35
+--- !u!114 &4490600491779005700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6396240027438617782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3e0fc469d34e42f59cad5d0c52ad32c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.GridPathFollowerDebugGizmos
+  grid: {fileID: 0}
+  unit: {fileID: 9128013772537741128}
+  utilityBrain: {fileID: 1872416170917198591}
+  drawPath: 1
+  drawTarget: 1
+  drawDirection: 1
+  nodeSize: 0.12
+  lineOffset: 0.1
+  pathColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  currentColor: {r: 0, g: 1, b: 1, a: 1}
+  targetColor: {r: 1, g: 0, b: 1, a: 1}
+  climbColor: {r: 0, g: 0, b: 1, a: 1}
+  fallColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &7002478939948823474
 GameObject:
   m_ObjectHideFlags: 0

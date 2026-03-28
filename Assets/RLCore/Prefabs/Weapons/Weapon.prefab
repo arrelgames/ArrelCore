@@ -43,6 +43,7 @@ GameObject:
   - component: {fileID: 2780921397053552405}
   - component: {fileID: 8986334197984471071}
   - component: {fileID: 9208410165744670962}
+  - component: {fileID: 7711223344556677880}
   m_Layer: 0
   m_Name: Weapon
   m_TagString: Untagged
@@ -86,6 +87,8 @@ MonoBehaviour:
   maxRange: 100
   damageAmount: 25
   weaponMeshController: {fileID: 9208410165744670962}
+  muzzleFlash: {fileID: 0}
+  impactLibrary: {fileID: 11400000, guid: 97bbae305d124abdb6909ba436b412cc, type: 2}
 --- !u!114 &9208410165744670962
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -113,6 +116,57 @@ MonoBehaviour:
   recoilRecoverSpeed: 8
   positionLerpSpeed: 10
   rotationLerpSpeed: 10
+--- !u!82 &7711223344556677880
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3671480671465877975}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: -8063817951784314501, guid: 5da797bb2125d42dc9bd7834f84db204, type: 2}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &3886448567601531655
 GameObject:
   m_ObjectHideFlags: 0

@@ -3,13 +3,18 @@ using UnityEngine;
 
 namespace RLGames
 {
-    public class WanderBehavior : IBehavior, IMovementIntentProvider
+    public class WanderBehavior : IBehavior, IMovementIntentProvider, IDebugPathFollowerProvider
     {
         private readonly Unit unit;
         private readonly GridWorld gridWorld;
         private readonly GridPathFollower pathFollower;
 
         private readonly float wanderRadius = 10f;
+        private const float WaitAfterArrivalMinSeconds = 1f;
+        private const float WaitAfterArrivalMaxSeconds = 5f;
+
+        /// <summary>When non-negative, Time.time must reach this before picking a new wander target.</summary>
+        private float waitUntilTime = -1f;
 
         private const bool DebugEnabled = true;
         private const float DebugLogIntervalSeconds = 1.0f;
@@ -17,6 +22,7 @@ namespace RLGames
 
         public Vector2 CurrentMoveInput { get; private set; }
         public bool JumpRequested => false;
+        public GridPathFollower DebugPathFollower => pathFollower;
 
         public WanderBehavior(Unit unit, GridWorld gridWorld)
         {
@@ -29,6 +35,14 @@ namespace RLGames
         {
             CurrentMoveInput = Vector2.zero;
 
+            if (waitUntilTime >= 0f)
+            {
+                if (Time.time < waitUntilTime)
+                    return TaskStatus.Running;
+
+                waitUntilTime = -1f;
+            }
+
             // If we don't have an active path, pick a new random nearby destination cell.
             if (!pathFollower.HasActivePath)
             {
@@ -39,6 +53,12 @@ namespace RLGames
             TaskStatus status = pathFollower.Update();
             CurrentMoveInput = pathFollower.CurrentMoveInput;
 
+            if (status == TaskStatus.RanToCompletion)
+            {
+                pathFollower.ClearDestination();
+                waitUntilTime = Time.time + Random.Range(WaitAfterArrivalMinSeconds, WaitAfterArrivalMaxSeconds);
+            }
+
             if (DebugEnabled && Time.time >= _nextDebugTime)
             {
                 _nextDebugTime = Time.time + DebugLogIntervalSeconds;
@@ -47,8 +67,6 @@ namespace RLGames
                     $"move=({CurrentMoveInput.x:0.00},{CurrentMoveInput.y:0.00}) hasPath={pathFollower.HasActivePath}");
             }
 
-            // Treat wandering as an ongoing behavior; even when we reach a target,
-            // we'll choose a new one on the next Execute call.
             if (status == TaskStatus.Faulted)
             {
                 return TaskStatus.Faulted;

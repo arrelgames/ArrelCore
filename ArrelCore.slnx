@@ -2,7 +2,7 @@
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
   <Project Path="Tayx.Graphy.csproj" />
-  <Project Path="BeautifyEditor.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="BeautifyEditor.csproj" />
   <Project Path="Tayx.Graphy.Editor.csproj" />
 </Solution>

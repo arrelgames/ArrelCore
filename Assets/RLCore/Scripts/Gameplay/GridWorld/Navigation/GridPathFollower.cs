@@ -100,6 +100,24 @@ namespace RLGames
             lastLoggedIndex = -1;
         }
 
+        /// <summary>
+        /// Clears destination and path state (e.g. after arrival or when switching behaviors).
+        /// </summary>
+        public void ClearDestination()
+        {
+            destination = null;
+            currentPath = null;
+            currentIndex = 0;
+            isPathPending = false;
+            hasLastRequestedStart = false;
+            lastProgressTime = 0f;
+            lastProgressIndex = -1;
+            advanceFrameCounter = 0;
+            lastLoggedIndex = -1;
+            CurrentMoveInput = Vector2.zero;
+            JumpRequested = false;
+        }
+
         public TaskStatus Update()
         {
             CurrentMoveInput = Vector2.zero;
@@ -163,7 +181,11 @@ namespace RLGames
             }
 
             if (currentPath == null || currentIndex >= currentPath.Count)
+            {
+                if (destination.HasValue && start.Equals(destination.Value))
+                    return TaskStatus.RanToCompletion;
                 return TaskStatus.Running;
+            }
 
             GridNode node = currentPath[currentIndex];
             GridCell cell = gridWorld.GetCell(node);

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 941a0a01de4e4ecbaefec1e9894939d2, type: 3}
+  m_Name: BulletImpactEffectLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.BulletImpactEffectLibrary
+  mappings:
+  - material: {fileID: 13400000, guid: 0bbef47a0f994a69822880a1e1f9339b, type: 2}
+    prefab: {fileID: 764233522663299168, guid: 545cd5fbfb85349ebb4f2f9f16270516, type: 3}
+  - material: {fileID: 13400000, guid: 599fbb0648e3492c8408094fa8f1fb68, type: 2}
+    prefab: {fileID: 0}
+  - material: {fileID: 13400000, guid: 8ca50e05e2ed490da446c31c98372508, type: 2}
+    prefab: {fileID: 0}
+  - material: {fileID: 13400000, guid: 5a819dce1a49469a895196f546c60083, type: 2}
+    prefab: {fileID: 0}
+  - material: {fileID: 13400000, guid: bc16c464855441ddafbe74e3e8b37ca4, type: 2}
+    prefab: {fileID: 0}
+  - material: {fileID: 13400000, guid: 54ffe901d91f46dfbc2d556fc0e32cab, type: 2}
+    prefab: {fileID: 0}
+  - material: {fileID: 13400000, guid: a17d48026ed74c499e1367fa6a9e715a, type: 2}
+    prefab: {fileID: 0}
+  defaultPrefab: {fileID: 764233522663299168, guid: 545cd5fbfb85349ebb4f2f9f16270516, type: 3}
