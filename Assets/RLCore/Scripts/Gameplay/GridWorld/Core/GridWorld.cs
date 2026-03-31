@@ -156,6 +156,41 @@ namespace RLGames
         }
 
         /// <summary>
+        /// Computes GI transmittance for a grid LOS step, independent from passage blocking.
+        /// 1 = fully transparent, 0 = fully occluded.
+        /// </summary>
+        public float ComputeGiStepTransmittance(Vector2Int from, Vector2Int to, float sampleHeight, float floorHeightCells)
+        {
+            var stepProps = new HashSet<GridProp>();
+            CollectStackPropsForGi(from, stepProps);
+            if (to != from)
+                CollectStackPropsForGi(to, stepProps);
+
+            if (stepProps.Count == 0)
+                return 1f;
+
+            float floorCells = Mathf.Max(1f, floorHeightCells);
+            float transmittance = 1f;
+
+            foreach (GridProp prop in stepProps)
+            {
+                if (prop == null || !prop.Solid || !prop.GiOccluder)
+                    continue;
+
+                float baseHeight = prop.GetRegistrationWorldPosition().y;
+                float topHeight = prop.GetTopWorldHeight();
+                if (sampleHeight < baseHeight || sampleHeight >= topHeight)
+                    continue;
+
+                float hCells = prop.PropHeight * Mathf.Abs(prop.transform.lossyScale.y);
+                float occlusion = Mathf.Clamp01(hCells / floorCells) * prop.GiOcclusionMultiplier;
+                transmittance *= (1f - occlusion);
+            }
+
+            return Mathf.Clamp01(transmittance);
+        }
+
+        /// <summary>
         /// Cardinal step from a footprint tile toward the neighbor separated by the wall (thin axis).
         /// Uses <b>-forward</b> on XZ so a default Unity mesh (forward +world Z) blocks grid (0,-1), i.e. the tile with lower grid Y / world Z — matching a wall on the south face of the footprint.
         /// </summary>
@@ -177,6 +212,28 @@ namespace RLGames
             return Mathf.Abs(f.x) >= Mathf.Abs(f.z)
                 ? new Vector2Int(f.x >= 0f ? 1 : -1, 0)
                 : new Vector2Int(0, f.z >= 0f ? 1 : -1);
+        }
+
+        private void CollectStackPropsForGi(Vector2Int pos, HashSet<GridProp> result)
+        {
+            GridStack stack = GetStack(pos);
+            if (stack == null || result == null)
+                return;
+
+            for (int i = 0; i < stack.Cells.Count; i++)
+            {
+                GridCell cell = stack.GetCell(i);
+                if (cell == null)
+                    continue;
+
+                IReadOnlyList<GridProp> props = cell.state.Props;
+                for (int p = 0; p < props.Count; p++)
+                {
+                    GridProp prop = props[p];
+                    if (prop != null)
+                        result.Add(prop);
+                }
+            }
         }
 
         private void ApplyPassageSolidEdges(GridProp prop, int delta)

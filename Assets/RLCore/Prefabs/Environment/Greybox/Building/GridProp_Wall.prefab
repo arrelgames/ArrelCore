@@ -136,13 +136,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GridProp
   baseSize: {x: 1, y: 0}
+  roundGridPosition: 1
   createsSurface: 0
   surfaceHeight: 1
   propHeight: 4
   solid: 1
   passageBlockingSolid: 1
-  soundSuppression: 0
-  visionSuppression: 0
+  soundSuppression: 0.5
+  visionSuppression: 1
 --- !u!1 &7140206659048356539
 GameObject:
   m_ObjectHideFlags: 0

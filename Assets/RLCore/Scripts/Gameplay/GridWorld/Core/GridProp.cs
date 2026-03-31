@@ -37,10 +37,20 @@ namespace RLGames
         [Range(0, 1)]
         [SerializeField] private float visionSuppression = 0f;
 
+        [Header("GI Occlusion")]
+        [Tooltip("If enabled, this prop can attenuate GI line-of-sight when solid.")]
+        [SerializeField] private bool giOccluder = true;
+
+        [Tooltip("Multiplier applied to GI occlusion strength for this prop.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float giOcclusionMultiplier = 1f;
+
         public bool CreatesSurface => createsSurface;
         public bool Solid => solid;
 
         public bool PassageBlockingSolid => passageBlockingSolid;
+        public bool GiOccluder => giOccluder;
+        public float GiOcclusionMultiplier => Mathf.Clamp01(giOcclusionMultiplier);
 
         public bool RoundGridPosition => roundGridPosition;
 
