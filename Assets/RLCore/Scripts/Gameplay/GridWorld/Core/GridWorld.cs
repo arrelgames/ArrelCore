@@ -18,6 +18,7 @@ namespace RLGames
 
         private readonly Dictionary<Vector2Int, GridStack> grid = new();
         private readonly HashSet<Vector2Int> dirtyTiles = new();
+        private readonly HashSet<Vector2Int> giDirtyTiles = new();
 
         private GridNavigation navigation;
 
@@ -180,6 +181,43 @@ namespace RLGames
                 float baseHeight = prop.GetRegistrationWorldPosition().y;
                 float topHeight = prop.GetTopWorldHeight();
                 if (sampleHeight < baseHeight || sampleHeight >= topHeight)
+                    continue;
+
+                float hCells = prop.PropHeight * Mathf.Abs(prop.transform.lossyScale.y);
+                float occlusion = Mathf.Clamp01(hCells / floorCells) * prop.GiOcclusionMultiplier;
+                transmittance *= (1f - occlusion);
+            }
+
+            return Mathf.Clamp01(transmittance);
+        }
+
+        /// <summary>
+        /// Computes GI transmittance for a vertical segment inside one stack.
+        /// 1 = fully transparent, 0 = fully occluded.
+        /// </summary>
+        public float ComputeGiVerticalTransmittance(Vector2Int pos, float fromHeight, float toHeight, float floorHeightCells)
+        {
+            var stepProps = new HashSet<GridProp>();
+            CollectStackPropsForGi(pos, stepProps);
+            if (stepProps.Count == 0)
+                return 1f;
+
+            float minH = Mathf.Min(fromHeight, toHeight);
+            float maxH = Mathf.Max(fromHeight, toHeight);
+            if (maxH - minH <= 1e-4f)
+                return 1f;
+
+            float floorCells = Mathf.Max(1f, floorHeightCells);
+            float transmittance = 1f;
+            foreach (GridProp prop in stepProps)
+            {
+                if (prop == null || !prop.Solid || !prop.GiOccluder)
+                    continue;
+
+                float baseHeight = prop.GetRegistrationWorldPosition().y;
+                float topHeight = prop.GetTopWorldHeight();
+                bool overlapsSegment = topHeight > minH && baseHeight < maxH;
+                if (!overlapsSegment)
                     continue;
 
                 float hCells = prop.PropHeight * Mathf.Abs(prop.transform.lossyScale.y);
@@ -669,12 +707,34 @@ namespace RLGames
         private void MarkDirty(Vector2Int pos)
         {
             dirtyTiles.Add(pos);
+            giDirtyTiles.Add(pos);
 
             // Include all neighbors (cardinal + diagonal)
             foreach (var dir in GridUtilities.AllDirs())
             {
                 dirtyTiles.Add(pos + dir);
+                giDirtyTiles.Add(pos + dir);
             }
+        }
+
+        /// <summary>
+        /// Copies and clears accumulated GI-dirty tiles since the last consume.
+        /// Returns true when at least one tile was emitted.
+        /// </summary>
+        public bool ConsumeGiDirtyTiles(List<Vector2Int> output)
+        {
+            if (output == null)
+                return false;
+
+            output.Clear();
+            if (giDirtyTiles.Count == 0)
+                return false;
+
+            foreach (Vector2Int pos in giDirtyTiles)
+                output.Add(pos);
+
+            giDirtyTiles.Clear();
+            return output.Count > 0;
         }
 
         private void UpdateDirtyNavigation()
