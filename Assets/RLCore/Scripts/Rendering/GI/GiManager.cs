@@ -89,6 +89,13 @@ namespace RLGames
         [Min(1)]
         [SerializeField] private int maxWindowDirtyTilesPerFrame = 4096;
 
+        [Tooltip("When enabled, the follow window (and GI texture shift) only updates when the anchor leaves a square deadzone around the last recenter position. Reduces work while moving. Uses Chebyshev distance in tiles (max of X/Z tile delta).")]
+        [SerializeField] private bool useSquareFollowDeadzone = false;
+
+        [Tooltip("Half-extent in base tiles: recenter only when max(|Δx|, |Δz|) from the deadzone origin exceeds this value. Keep well below half of min(window width, window depth).")]
+        [Min(0)]
+        [SerializeField] private int squareDeadzoneRadiusTiles = 4;
+
         [Header("Debug")]
         [SerializeField] private bool drawNodeGizmos = false;
         [SerializeField] private float gizmoSphereRadius = 0.15f;
@@ -117,6 +124,7 @@ namespace RLGames
         private bool hasActiveWindowBounds;
         private int activeMinX, activeMaxX, activeMinY, activeMaxY;
         private Vector2Int activeWindowAnchorTile;
+        private Vector2Int giDeadzoneOriginTile;
         private int pendingTexelShiftX;
         private int pendingTexelShiftZ;
         private float volumeMinWorldY;
@@ -833,7 +841,8 @@ namespace RLGames
                 return;
 
             Vector2Int tile = WorldToBaseTile(anchor.position);
-            SetActiveWindowFromAnchor(tile, force: true, out _, out _);
+            if (SetActiveWindowFromAnchor(tile, force: true, out _, out _) && useSquareFollowDeadzone)
+                giDeadzoneOriginTile = tile;
         }
 
         private void UpdateCameraFollowWindow()
@@ -846,8 +855,20 @@ namespace RLGames
                 return;
 
             Vector2Int tile = WorldToBaseTile(anchor.position);
+            if (useSquareFollowDeadzone && hasActiveWindowBounds)
+            {
+                int cheb = Mathf.Max(
+                    Mathf.Abs(tile.x - giDeadzoneOriginTile.x),
+                    Mathf.Abs(tile.y - giDeadzoneOriginTile.y));
+                if (cheb <= squareDeadzoneRadiusTiles)
+                    return;
+            }
+
             if (!SetActiveWindowFromAnchor(tile, force: !hasActiveWindowBounds, out int dx, out int dz))
                 return;
+
+            if (useSquareFollowDeadzone)
+                giDeadzoneOriginTile = tile;
 
             if (!buildTexture || giTexture == null)
                 return;

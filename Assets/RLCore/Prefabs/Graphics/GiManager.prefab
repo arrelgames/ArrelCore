@@ -65,18 +65,22 @@ MonoBehaviour:
   useSourceDirtyTracking: 1
   xzDownsample: 1
   yResolution: 4
+  yRangePaddingCells: 0.5
+  minWorldYSpanCells: 4
   fullRebuildDirtyTileThreshold: 24
   fullRebuildDirtyNodeFraction: 0.35
   rebuildCoalesceWindow: 0.05
   giResolutionMultiplier: 1
   useGiJobsBurst: 1
-  useCameraFollowWindow: 0
+  useCameraFollowWindow: 1
   windowCameraTransform: {fileID: 0}
   windowWidthTiles: 48
   windowDepthTiles: 48
   maxStripShiftTiles: 8
   maxWindowDirtyTilesPerFrame: 4096
-  drawNodeGizmos: 1
+  useSquareFollowDeadzone: 1
+  squareDeadzoneRadiusTiles: 4
+  drawNodeGizmos: 0
   gizmoSphereRadius: 0.15
   logNodeCountDuringPlay: 0
   nodeCountLogInterval: 1
