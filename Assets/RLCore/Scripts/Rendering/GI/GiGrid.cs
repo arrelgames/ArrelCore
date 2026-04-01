@@ -25,6 +25,17 @@ namespace RLGames
     }
 
     /// <summary>
+    /// Parameters for <see cref="GiGrid.UpdateBounceFromCurrent"/> (indirect feedback from propagated irradiance).
+    /// </summary>
+    public struct GiBounceSettings
+    {
+        public float bounceAlbedo;
+        /// <summary>When &gt; 0, clamps each RGB channel after albedo scaling.</summary>
+        public float maxBounce;
+        public bool useNeighborAverageForBounce;
+    }
+
+    /// <summary>
     /// Pure data container + propagation logic for GI values on top of the existing GridWorld.
     /// Does not touch gameplay/navigation and is intended to be driven by <see cref="GiManager"/>.
     /// </summary>
@@ -59,8 +70,11 @@ namespace RLGames
         // Double-buffer for propagation.
         private Color[] workingIrradiance;
         private Color[] currentIrradianceByIndex = Array.Empty<Color>();
+        /// <summary>Direct irradiance from <see cref="GiSource"/> only; cleared by <see cref="ClearSources"/>.</summary>
         private Color[] sourceIrradianceByIndex = Array.Empty<Color>();
         private Color[] sourceIrradianceFromAboveByIndex = Array.Empty<Color>();
+        /// <summary>Indirect term from previous tick; merged with direct for propagation. Not cleared with <see cref="ClearSources"/>.</summary>
+        private Color[] bounceSourceIrradianceByIndex = Array.Empty<Color>();
         private Vector2Int[] gridPosByIndex = Array.Empty<Vector2Int>();
         private int[] verticalLayerByIndex = Array.Empty<int>();
         private Vector3[] worldPosByIndex = Array.Empty<Vector3>();
@@ -68,6 +82,12 @@ namespace RLGames
 
         private int resolutionMultiplier = 1;
         public bool UseJobsBurst { get; set; }
+
+        /// <summary>
+        /// When true, <see cref="StepPropagation"/> uses the main-thread neighbor path and merges bounce sources.
+        /// Burst propagation does not match neighbor diffusion; keep this in sync with GiManager bounce toggle.
+        /// </summary>
+        public bool BounceFeedbackEnabled { get; set; }
 
         public IReadOnlyList<GiNode> Nodes
         {
@@ -444,13 +464,26 @@ namespace RLGames
         #region Sources
 
         /// <summary>
-        /// Clears all per-frame source irradiance contributions. Call before re-applying sources.
+        /// Clears direct source irradiance from <see cref="GiSource"/> only.
+        /// Does not clear <see cref="bounceSourceIrradianceByIndex"/> (indirect feedback persists until updated).
         /// </summary>
         public void ClearSources()
         {
             EnsureArrayStorageSize(nodes.Count);
             Array.Clear(sourceIrradianceByIndex, 0, nodes.Count);
             Array.Clear(sourceIrradianceFromAboveByIndex, 0, nodes.Count);
+            nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Zeros indirect bounce sources (e.g. when bounce is disabled or after a full grid rebuild).
+        /// </summary>
+        public void ClearBounceSources()
+        {
+            if (nodes.Count == 0)
+                return;
+            EnsureArrayStorageSize(nodes.Count);
+            Array.Clear(bounceSourceIrradianceByIndex, 0, nodes.Count);
             nodesNeedSyncFromArrays = true;
         }
 
@@ -684,6 +717,7 @@ namespace RLGames
 
         /// <summary>
         /// Performs a single diffusion step over all nodes.
+        /// When <see cref="BounceFeedbackEnabled"/> is true, merges <see cref="bounceSourceIrradianceByIndex"/> with direct sources and always uses the main-thread neighbor path (Burst path omits neighbor diffusion).
         /// </summary>
         public void StepPropagation()
         {
@@ -694,7 +728,9 @@ namespace RLGames
             float diffusion = Mathf.Clamp01(DiffusionStrength);
             float damping = Mathf.Clamp01(Damping);
 
-            if (UseJobsBurst)
+            bool useBurst = UseJobsBurst && !BounceFeedbackEnabled;
+
+            if (useBurst)
             {
                 NativeArray<Color> current = new NativeArray<Color>(currentIrradianceByIndex, Allocator.TempJob);
                 NativeArray<Color> source = new NativeArray<Color>(sourceIrradianceByIndex, Allocator.TempJob);
@@ -729,13 +765,67 @@ namespace RLGames
                     }
 
                     Color diffused = Color.Lerp(currentIrradianceByIndex[i], neighborSum, diffusion);
-                    workingIrradiance[i] = (sourceIrradianceByIndex[i] + diffused) * damping;
+                    Color direct = sourceIrradianceByIndex[i];
+                    Color bounce = BounceFeedbackEnabled && bounceSourceIrradianceByIndex != null && i < bounceSourceIrradianceByIndex.Length
+                        ? bounceSourceIrradianceByIndex[i]
+                        : Color.black;
+                    workingIrradiance[i] = (direct + bounce + diffused) * damping;
                 }
 
                 for (int i = 0; i < count; i++)
                     currentIrradianceByIndex[i] = workingIrradiance[i];
             }
             nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Updates <see cref="bounceSourceIrradianceByIndex"/> from the current propagated field for use on the next tick.
+        /// Call after <see cref="StepPropagation"/> when <see cref="BounceFeedbackEnabled"/> is true.
+        /// </summary>
+        public void UpdateBounceFromCurrent(in GiBounceSettings settings)
+        {
+            if (!BounceFeedbackEnabled || nodes.Count == 0)
+                return;
+
+            float albedo = Mathf.Clamp01(settings.bounceAlbedo);
+            if (albedo <= 0f)
+            {
+                ClearBounceSources();
+                return;
+            }
+
+            int count = nodes.Count;
+            EnsureArrayStorageSize(count);
+            float maxB = settings.maxBounce;
+
+            for (int i = 0; i < count; i++)
+            {
+                Color basis = settings.useNeighborAverageForBounce ? GetNeighborAverageCurrent(i) : currentIrradianceByIndex[i];
+                Color b = basis * albedo;
+                if (maxB > 0f)
+                {
+                    b.r = Mathf.Min(b.r, maxB);
+                    b.g = Mathf.Min(b.g, maxB);
+                    b.b = Mathf.Min(b.b, maxB);
+                }
+
+                bounceSourceIrradianceByIndex[i] = b;
+            }
+
+            nodesNeedSyncFromArrays = true;
+        }
+
+        private Color GetNeighborAverageCurrent(int i)
+        {
+            int[] nbrs = neighbors[i];
+            if (nbrs == null || nbrs.Length == 0)
+                return currentIrradianceByIndex[i];
+
+            Color neighborSum = Color.black;
+            for (int k = 0; k < nbrs.Length; k++)
+                neighborSum += currentIrradianceByIndex[nbrs[k]];
+            neighborSum /= nbrs.Length;
+            return neighborSum;
         }
 
         #endregion
@@ -872,8 +962,9 @@ namespace RLGames
         }
 
         /// <summary>
-        /// Returns [0..1] representing what fraction of this node's source irradiance
-        /// came from above (source.y >= node.y). Used to split texture writes directionally.
+        /// Returns [0..1] representing what fraction of this node's <b>direct</b> source irradiance
+        /// (from <see cref="GiSource"/> only) came from above (emitter y &gt;= node y).
+        /// Indirect bounce energy is excluded so the Y texture split stays consistent with emissive semantics.
         /// </summary>
         public float GetSourceFractionAbove(int index)
         {
@@ -955,6 +1046,7 @@ namespace RLGames
                 currentIrradianceByIndex = new Color[count];
                 sourceIrradianceByIndex = new Color[count];
                 sourceIrradianceFromAboveByIndex = new Color[count];
+                bounceSourceIrradianceByIndex = new Color[count];
             }
         }
 

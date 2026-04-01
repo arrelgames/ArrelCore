@@ -60,6 +60,16 @@ Use this checklist after changing GridProps at runtime to verify incremental GI 
 6. Stress-test camera movement and runtime topology edits together and verify no persistent stale strips or lighting pops.
 7. Capture 10s HUD averages for baseline and optimized mode and log `FPS`, `CPU`, and `AVG CPU`.
 
+## Indirect bounce (multi-bounce feedback) checks
+
+1. With `Enable Bounce Feedback` off, baseline matches prior behavior (no extra spill vs last known good).
+2. Enable `Enable Bounce Feedback`, set `Bounce Albedo` low (e.g. `0.1`–`0.2`), run 60+ seconds with bright sources — no runaway brightness (tune `Damping` / `Bounce Albedo` / optional `Max Bounce`).
+3. With `Use Source Dirty Tracking` on and static sources, confirm indirect light still evolves over several propagation ticks (bounce updates every tick).
+4. Toggle `Enable Bounce Feedback` off during play — confirm `ClearBounceSources` path (indirect energy drops; no exceptions).
+5. Call `Force Full Gi Rebuild` (or trigger full grid rebuild) with bounce on — no stale bounce or exceptions; volume stabilizes.
+6. With `Use GI Jobs Burst` on and `Enable Bounce Feedback` on, confirm propagation uses the main-thread neighbor path (profiler: no `PropagationJob` schedule for the propagation step, or parity with burst-off for the same scene).
+7. Compare `Use Neighbor Average For Bounce` on vs off for the same `Bounce Albedo` — smoother spill vs slightly higher CPU; no NaNs or black volume.
+
 ## Pass criteria
 
 - No stale lighting artifacts after topology edits.
@@ -69,3 +79,4 @@ Use this checklist after changing GridProps at runtime to verify incremental GI 
 - Point/Spot/Rect/Directional run without exceptions and show bounded runtime behavior.
 - Camera-follow window tracks camera tile movement and remains visually stable under normal motion.
 - Tiered performance path improves CPU cost while preserving expected GI behavior.
+- Indirect bounce remains stable, clears when disabled or on full rebuild, and does not use the Burst propagation job while enabled (neighbor diffusion required).

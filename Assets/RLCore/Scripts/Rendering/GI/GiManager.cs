@@ -21,6 +21,21 @@ namespace RLGames
 
         [SerializeField] private float propagationTickInterval = 0.1f;
 
+        [Header("Indirect bounce")]
+        [Tooltip("Feed back propagated irradiance as a source term on the next tick (multi-bounce approximation). Uses the main-thread neighbor diffusion path; when enabled, Burst jobs are not used for propagation even if Use GI Jobs Burst is on.")]
+        [SerializeField] private bool enableBounceFeedback = false;
+
+        [Range(0f, 1f)]
+        [Tooltip("Scales current irradiance (or neighbor average) into the indirect source. Keep moderate vs Damping to avoid runaway brightness.")]
+        [SerializeField] private float bounceAlbedo = 0.15f;
+
+        [Min(0f)]
+        [Tooltip("When greater than 0, clamps each RGB channel of the bounce source after albedo. Use 0 for no cap.")]
+        [SerializeField] private float maxBounce = 0f;
+
+        [Tooltip("If enabled, bounce basis uses neighbor-average current irradiance (costlier); otherwise uses this node's current value.")]
+        [SerializeField] private bool useNeighborAverageForBounce = false;
+
         [Header("Occlusion")]
         [Min(1f)]
         [SerializeField] private float occlusionFloorHeightCells = 4f;
@@ -138,6 +153,7 @@ namespace RLGames
         private bool sourceInjectionDirty = true;
         private bool rendererCacheDirty = true;
         private bool pendingCameraFollowDirtyBatch;
+        private bool lastBounceFeedbackEnabled;
 
         private void Awake()
         {
@@ -191,6 +207,10 @@ namespace RLGames
             giGrid.OcclusionFloorHeightCells = occlusionFloorHeightCells;
             giGrid.OcclusionCutoff = occlusionCutoff;
             giGrid.UseJobsBurst = useGiJobsBurst;
+            giGrid.BounceFeedbackEnabled = enableBounceFeedback;
+            if (lastBounceFeedbackEnabled && !enableBounceFeedback)
+                giGrid.ClearBounceSources();
+            lastBounceFeedbackEnabled = enableBounceFeedback;
             int clampedMultiplier = Mathf.Max(1, giResolutionMultiplier);
             if (giGrid.ResolutionMultiplier != clampedMultiplier)
             {
@@ -242,6 +262,16 @@ namespace RLGames
             }
 
             giGrid.StepPropagation();
+
+            if (enableBounceFeedback)
+            {
+                giGrid.UpdateBounceFromCurrent(new GiBounceSettings
+                {
+                    bounceAlbedo = bounceAlbedo,
+                    maxBounce = maxBounce,
+                    useNeighborAverageForBounce = useNeighborAverageForBounce
+                });
+            }
 
             if (buildTexture)
                 UpdateTextureFromGrid();
@@ -491,6 +521,7 @@ namespace RLGames
                 int tyTop = WorldYToVolumeSlice(nodeWorldPos.y + giYWriteOffset, sizeY);
                 int tyBot = Mathf.Max(0, tyTop - 1);
 
+                // fAbove uses direct GiSource data only; total irradiance includes indirect bounce.
                 float fAbove = giGrid.GetSourceFractionAbove(i);
                 Color irr = giGrid.GetCurrentIrradianceAt(i);
                 Color irrTop = irr * fAbove;
@@ -597,6 +628,7 @@ namespace RLGames
                 if (!scratchTexelIndices.Contains(idxTop))
                     continue;
 
+                // fAbove uses direct GiSource data only; total irradiance includes indirect bounce.
                 float fAbove = giGrid.GetSourceFractionAbove(i);
                 Color irr = giGrid.GetCurrentIrradianceAt(i);
                 Color irrTop = irr * fAbove;
@@ -801,6 +833,7 @@ namespace RLGames
                 giGrid.RebuildAll(rebuildMinX, rebuildMaxX, rebuildMinY, rebuildMaxY);
             else
                 giGrid.RebuildAll();
+            giGrid.ClearBounceSources();
             ComputeGridExtents(gridWorld);
             InitializeWindowBoundsIfNeeded();
             if (buildTexture)

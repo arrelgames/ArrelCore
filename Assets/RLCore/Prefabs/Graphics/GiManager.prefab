@@ -45,8 +45,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GiManager
   diffusionStrength: 0.6
-  damping: 0.9
+  damping: 0.8
   propagationTickInterval: 0.1
+  enableBounceFeedback: 0
+  bounceAlbedo: 0.1
+  maxBounce: 0
+  useNeighborAverageForBounce: 1
   occlusionFloorHeightCells: 4
   occlusionCutoff: 0.05
   buildTexture: 1
@@ -72,7 +76,7 @@ MonoBehaviour:
   rebuildCoalesceWindow: 0.05
   giResolutionMultiplier: 1
   useGiJobsBurst: 1
-  useCameraFollowWindow: 1
+  useCameraFollowWindow: 0
   windowCameraTransform: {fileID: 0}
   windowWidthTiles: 48
   windowDepthTiles: 48
@@ -80,7 +84,7 @@ MonoBehaviour:
   maxWindowDirtyTilesPerFrame: 4096
   useSquareFollowDeadzone: 1
   squareDeadzoneRadiusTiles: 4
-  drawNodeGizmos: 0
+  drawNodeGizmos: 1
   gizmoSphereRadius: 0.15
   logNodeCountDuringPlay: 0
   nodeCountLogInterval: 1
