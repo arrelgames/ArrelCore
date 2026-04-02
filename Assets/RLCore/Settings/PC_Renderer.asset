@@ -52,6 +52,27 @@ MonoBehaviour:
   stripUnityChromaticAberration: 0
   stripUnityDistortion: 0
   stripUnityDebugVariants: 0
+--- !u!114 &-2091552726609649151
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40a307005158f4bd7bfe1544b7114c5e, type: 3}
+  m_Name: SSGIRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.Rendering.SSGI.SSGIRendererFeature
+  m_Active: 1
+  m_TraceShader: {fileID: 4800000, guid: 56ae219465e4e4eb8a27aecb84f7dd07, type: 3}
+  m_TemporalShader: {fileID: 4800000, guid: 9a1c292a5c91d4c3599abb4e2fcc4f10, type: 3}
+  m_DenoiseShader: {fileID: 4800000, guid: 97ff52249039c4519a272ce0e20c8e5d, type: 3}
+  m_CompositeShader: {fileID: 4800000, guid: a7da19685ff5b43539fab9e83f24c826, type: 3}
+  m_TraceMat: {fileID: 0}
+  m_TemporalMat: {fileID: 0}
+  m_DenoiseMat: {fileID: 0}
+  m_CompositeMat: {fileID: 0}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101,7 +122,7 @@ MonoBehaviour:
     failOperation: 0
     zFailOperation: 0
   m_ShadowTransparentReceive: 1
-  m_RenderingMode: 2
+  m_RenderingMode: 3
   m_DepthPrimingMode: 0
   m_CopyDepthMode: 0
   m_DepthAttachmentFormat: 0
