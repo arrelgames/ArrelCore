@@ -30,11 +30,35 @@ namespace RLGames
         [SerializeField] private float bounceAlbedo = 0.15f;
 
         [Min(0f)]
-        [Tooltip("When greater than 0, clamps each RGB channel of the bounce source after albedo. Use 0 for no cap.")]
+        [Tooltip("0 = no per-channel cap (bounce is not disabled). Values > 0 clamp each RGB channel after Bounce Albedo. Indirect visibility is mostly Bounce Albedo × Damping × Diffusion, not this field.")]
         [SerializeField] private float maxBounce = 0f;
 
         [Tooltip("If enabled, bounce basis uses neighbor-average current irradiance (costlier); otherwise uses this node's current value.")]
         [SerializeField] private bool useNeighborAverageForBounce = false;
+
+        [Tooltip("When enabled, propagation and bounce neighbor-averaging only couple neighbors whose world Y differs by at most Propagation Same Floor Max World Y Delta (or half CellSizeY if 0). Uses world height, not stack layer index, so single-surface columns at y=0 and y=4 do not exchange light through horizontal graph edges.")]
+        [SerializeField] private bool restrictPropagationToSameVerticalLayer = true;
+
+        [Min(0f)]
+        [Tooltip("Max world-Y difference for neighbors to diffuse together when restriction is on. 0 = use half of GridWorld CellSizeY. Increase slightly if same-floor meshes disagree in Y and look patchy.")]
+        [SerializeField] private float propagationSameFloorMaxWorldYDelta = 0f;
+
+        [Tooltip("When enabled, bounce feedback is only written on nodes that have non-zero direct GiSource irradiance. Pairs with Limit Diffusion To Gi Source Reach to stop indirect fill outside the lit volume.")]
+        [SerializeField] private bool bounceOnlyWhereDirectNonZero = true;
+
+        [Tooltip("When enabled, neighbor diffusion uses the full Diffusion Strength only inside at least one point/spot/rect blend sphere (see Diffusion Reach Blend Radius Scale). Stale clearing still uses the raw GiSource radius. Directional sources do not define a sphere. Turn off for global ambient diffusion.")]
+        [SerializeField] private bool limitDiffusionToGiSourceReach = true;
+
+        [Min(1f)]
+        [Tooltip("Blend radius for neighbor diffusion = max(source radius, source radius × scale + padding). Indirect bounce needs this band past direct injection; stale GI is cleared using the unscaled source radius only.")]
+        [SerializeField] private float diffusionReachBlendRadiusScale = 1.45f;
+
+        [Min(0f)]
+        [Tooltip("Extra world units added when computing the diffusion blend radius (after scaling).")]
+        [SerializeField] private float diffusionReachBlendPaddingWorld = 0f;
+
+        [Tooltip("When GiSource positions, radii, or intensity state refresh (dirty), zeros propagated current and bounce on nodes outside all point/spot/rect reach spheres so moved lights do not leave slowly fading ghosts.")]
+        [SerializeField] private bool clearStaleGiOutsideReachWhenSourcesUpdate = true;
 
         [Header("Occlusion")]
         [Min(1f)]
@@ -208,6 +232,9 @@ namespace RLGames
             giGrid.OcclusionCutoff = occlusionCutoff;
             giGrid.UseJobsBurst = useGiJobsBurst;
             giGrid.BounceFeedbackEnabled = enableBounceFeedback;
+            giGrid.RestrictPropagationToSameVerticalLayer = restrictPropagationToSameVerticalLayer;
+            giGrid.PropagationSameFloorMaxWorldYDelta = propagationSameFloorMaxWorldYDelta;
+            giGrid.RestrictSourceInjectionToSourceFloor = restrictPropagationToSameVerticalLayer;
             if (lastBounceFeedbackEnabled && !enableBounceFeedback)
                 giGrid.ClearBounceSources();
             lastBounceFeedbackEnabled = enableBounceFeedback;
@@ -254,12 +281,32 @@ namespace RLGames
                 changedSourceDetected = true;
             }
             sourceInjectionDirty |= changedSourceDetected;
+            bool sourcesJustRefreshed = sourceInjectionDirty;
             if (sourceInjectionDirty)
             {
                 giGrid.ClearSources();
                 ApplySourcesToGrid();
                 sourceInjectionDirty = false;
             }
+
+            giGrid.EnableDiffusionReachLimit = limitDiffusionToGiSourceReach;
+            giGrid.ClearDiffusionReachSpheres();
+            for (int si = 0; si < sources.Count; si++)
+            {
+                GiSource gs = sources[si];
+                if (gs == null || !gs.isActiveAndEnabled)
+                    continue;
+                if (gs.TryGetDiffusionReachSphere(out Vector3 c, out float strictR))
+                {
+                    float blendR = Mathf.Max(
+                        strictR,
+                        strictR * diffusionReachBlendRadiusScale + diffusionReachBlendPaddingWorld);
+                    giGrid.AddDiffusionReachSphere(c, strictR, blendR);
+                }
+            }
+
+            if (clearStaleGiOutsideReachWhenSourcesUpdate && sourcesJustRefreshed && giGrid.DiffusionReachSphereCount > 0)
+                giGrid.ZeroStaleOutsideDiffusionReachSpheres(zeroCurrent: !enableBounceFeedback);
 
             giGrid.StepPropagation();
 
@@ -269,9 +316,32 @@ namespace RLGames
                 {
                     bounceAlbedo = bounceAlbedo,
                     maxBounce = maxBounce,
-                    useNeighborAverageForBounce = useNeighborAverageForBounce
+                    useNeighborAverageForBounce = useNeighborAverageForBounce,
+                    bounceOnlyWhereDirectNonZero = bounceOnlyWhereDirectNonZero
                 });
             }
+
+            // #region agent log
+            if (sourcesJustRefreshed && sources.Count > 0 && sources[0] != null && sources[0].isActiveAndEnabled)
+            {
+                float srcY = sources[0].transform.position.y;
+                float bandMinY = srcY + 1.25f;
+                int topDirect = giGrid.CountNodesWithDirectAboveY(bandMinY);
+                float maxIrr = giGrid.GetMaxCurrentIrradiance();
+                long ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                string line =
+                    "{\"sessionId\":\"54e885\",\"hypothesisId\":\"H-floor-target\"," +
+                    "\"location\":\"GiManager.Update\",\"message\":\"post_inject_status\"," +
+                    "\"data\":{\"srcY\":" + srcY.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"bandMinY\":" + bandMinY.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"topDirectCount\":" + topDirect +
+                    ",\"maxIrradiance\":" + maxIrr.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"floorTarget\":" + (giGrid.RestrictSourceInjectionToSourceFloor ? "true" : "false") +
+                    "},\"timestamp\":" + ts + "}\n";
+                try { System.IO.File.AppendAllText("/Users/jmacmini/Documents/GitHub/ArrelCore/.cursor/debug-54e885.log", line); }
+                catch { /* ignore */ }
+            }
+            // #endregion
 
             if (buildTexture)
                 UpdateTextureFromGrid();
@@ -545,7 +615,8 @@ namespace RLGames
                     data[i] /= count;
             }
 
-            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
+            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ,
+                ComputeMaxUpwardCarrySlices(sizeY));
 
             if (useCameraFollowWindow)
                 FillEmptyTexelsFromNeighbors(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
@@ -654,7 +725,8 @@ namespace RLGames
                     data[tidx] /= count;
             }
 
-            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
+            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ,
+                ComputeMaxUpwardCarrySlices(sizeY));
 
             giTexture.SetPixels(data);
             giTexture.Apply(false, false);
@@ -1158,10 +1230,11 @@ namespace RLGames
         /// For each XZ column, fill empty Y slices using distance-weighted blending
         /// between the nearest data slices above and below. Slices between two floors
         /// get a proximity-weighted mix (ceiling sees mostly its own floor's data).
-        /// Slices above the highest data carry upward. Slices below the lowest stay
-        /// empty so floor undersides facing away from all light remain dark.
+        /// Slices above the highest data carry upward up to <paramref name="maxUpwardCarrySlices"/>.
+        /// Slices below the lowest stay empty so floor undersides facing away from all light remain dark.
         /// </summary>
-        private static void FillEmptyYSlicesBidirectional(Color[] data, int[] counts, int sizeX, int sizeY, int sizeZ)
+        /// <param name="maxUpwardCarrySlices">Max empty slices above the highest data to fill. Limits floor-crossing bleed in the texture.</param>
+        private static void FillEmptyYSlicesBidirectional(Color[] data, int[] counts, int sizeX, int sizeY, int sizeZ, int maxUpwardCarrySlices = 2)
         {
             for (int tz = 0; tz < sizeZ; tz++)
             {
@@ -1200,11 +1273,12 @@ namespace RLGames
                         }
                     }
 
-                    if (highestData >= 0)
+                    if (highestData >= 0 && maxUpwardCarrySlices > 0)
                     {
                         int hIdx = tx + sizeX * (highestData + sizeY * tz);
                         Color carry = data[hIdx];
-                        for (int ty = highestData + 1; ty < sizeY; ty++)
+                        int carryLimit = Mathf.Min(sizeY, highestData + 1 + maxUpwardCarrySlices);
+                        for (int ty = highestData + 1; ty < carryLimit; ty++)
                         {
                             int idx = tx + sizeX * (ty + sizeY * tz);
                             if (counts[idx] == 0)
@@ -1317,6 +1391,16 @@ namespace RLGames
                 return 0f;
             float span = Mathf.Max(1e-4f, volumeMaxWorldY - volumeMinWorldY);
             return span / (2f * sizeY);
+        }
+
+        private int ComputeMaxUpwardCarrySlices(int sizeY)
+        {
+            if (sizeY <= 1 || gridWorld == null)
+                return 1;
+            float span = Mathf.Max(1e-4f, volumeMaxWorldY - volumeMinWorldY);
+            float sliceHeight = span / sizeY;
+            float halfFloor = Mathf.Max(0.5f, occlusionFloorHeightCells * gridWorld.CellSizeY * 0.4f);
+            return Mathf.Clamp(Mathf.CeilToInt(halfFloor / sliceHeight), 1, sizeY);
         }
 
         private void LogNodeCountIfEnabled()

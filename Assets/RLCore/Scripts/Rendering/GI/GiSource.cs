@@ -151,6 +151,30 @@ namespace RLGames
             }
         }
 
+        /// <summary>World-space radius used for radial / spot / rect range when applied to <see cref="GiGrid"/>.</summary>
+        public float GetRadiusWorldForGi() => GetClampedRadius();
+
+        /// <summary>
+        /// Point / spot / rect sources define a world-space reach sphere for optional diffusion clamping in <see cref="GiManager"/>.
+        /// Directional sources return false (no sphere).
+        /// </summary>
+        public bool TryGetDiffusionReachSphere(out Vector3 center, out float worldRadius)
+        {
+            center = transform.position;
+            switch (lightType)
+            {
+                case LightType.Spot:
+                case LightType.Rect:
+                case LightType.Point:
+                    worldRadius = GetClampedRadius();
+                    return true;
+                case LightType.Directional:
+                default:
+                    worldRadius = 0f;
+                    return false;
+            }
+        }
+
         public void SetIntensityMultiplier(float value)
         {
             intensityMultiplier = value;

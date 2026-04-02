@@ -33,6 +33,12 @@ namespace RLGames
         /// <summary>When &gt; 0, clamps each RGB channel after albedo scaling.</summary>
         public float maxBounce;
         public bool useNeighborAverageForBounce;
+        /// <summary>
+        /// When true, indirect bounce source is only written where the <b>direct</b> source term is non-zero this frame.
+        /// Stops secondary feedback from propagating along a floor via nodes that never receive <see cref="GiSource"/> energy
+        /// (same-floor diffusion of <see cref="currentIrradianceByIndex"/> still applies).
+        /// </summary>
+        public bool bounceOnlyWhereDirectNonZero;
     }
 
     /// <summary>
@@ -88,6 +94,76 @@ namespace RLGames
         /// Burst propagation does not match neighbor diffusion; keep this in sync with GiManager bounce toggle.
         /// </summary>
         public bool BounceFeedbackEnabled { get; set; }
+
+        /// <summary>
+        /// When true, diffusion and bounce neighbor-averaging only use neighbors whose world Y is within
+        /// <see cref="PropagationSameFloorMaxWorldYDelta"/> (or half <see cref="GridWorld.CellSizeY"/> when that is 0).
+        /// Stack-local <see cref="GiNode.verticalLayer"/> indices are not used: two columns with one walkable each can both be layer 0
+        /// at different heights, and would incorrectly couple via horizontal edges if we matched layer index only.
+        /// </summary>
+        public bool RestrictPropagationToSameVerticalLayer { get; set; }
+
+        /// <summary>
+        /// Max allowed |worldY_i - worldY_j| for diffusion when <see cref="RestrictPropagationToSameVerticalLayer"/> is true.
+        /// When 0 or less, uses <c>GridWorld.CellSizeY * 0.5f</c>.
+        /// </summary>
+        public float PropagationSameFloorMaxWorldYDelta { get; set; }
+
+        /// <summary>
+        /// When true, <see cref="AddRadialSource"/> and <see cref="AddSpotSource"/> restrict injection
+        /// to the floor the source is on: the highest walkable surface at or below the source Y at each
+        /// XZ column. Nodes on other floors are skipped, preventing light from crossing ceilings/floors
+        /// even when occlusion transmittance is non-zero.
+        /// </summary>
+        public bool RestrictSourceInjectionToSourceFloor { get; set; }
+
+        /// <summary>
+        /// When true with at least one entry in <see cref="AddDiffusionReachSphere"/>, nodes outside every blend reach sphere use zero diffusion strength
+        /// (no neighbor blending of <see cref="currentIrradianceByIndex"/>). <see cref="ZeroStaleOutsideDiffusionReachSpheres"/> uses the tighter
+        /// strict radius per source so moved lights still clear promptly while indirect bounce can spread in an outer band.
+        /// </summary>
+        public bool EnableDiffusionReachLimit { get; set; }
+
+        private readonly List<(Vector3 center, float strictRadius, float blendRadius)> diffusionReachSpheres = new();
+
+        public void ClearDiffusionReachSpheres() => diffusionReachSpheres.Clear();
+
+        /// <param name="strictRadius">GiSource world radius; used for stale GI zeroing outside all sources.</param>
+        /// <param name="blendRadius">World radius for neighbor diffusion; should be &gt;= strict so bounce/indirect can extend past direct injection.</param>
+        public void AddDiffusionReachSphere(Vector3 center, float strictRadius, float blendRadius)
+        {
+            if (strictRadius <= 0f)
+                return;
+            float blend = Mathf.Max(strictRadius, blendRadius);
+            diffusionReachSpheres.Add((center, strictRadius, blend));
+        }
+
+        public int DiffusionReachSphereCount => diffusionReachSpheres.Count;
+
+        /// <summary>
+        /// Clears stale GI on nodes outside every strict reach sphere when sources move.
+        /// Bounce is always zeroed outside spheres (prevents indirect feedback from sustaining ghosts).
+        /// Current is either zeroed or left to decay via damping depending on <paramref name="zeroCurrent"/>.
+        /// </summary>
+        /// <param name="zeroCurrent">If true, also zeros <see cref="currentIrradianceByIndex"/> (instant clear).
+        /// If false, only bounce is zeroed; the current field fades naturally, giving a smoother transition.</param>
+        public void ZeroStaleOutsideDiffusionReachSpheres(bool zeroCurrent)
+        {
+            if (diffusionReachSpheres.Count == 0 || nodes.Count == 0)
+                return;
+            int n = GetNodeCount();
+            EnsureArrayStorageSize(n);
+            for (int i = 0; i < n; i++)
+            {
+                if (IsWorldPositionInsideAnyStrictDiffusionReachSphere(worldPosByIndex[i]))
+                    continue;
+                bounceSourceIrradianceByIndex[i] = Color.black;
+                if (zeroCurrent)
+                    currentIrradianceByIndex[i] = Color.black;
+            }
+
+            nodesNeedSyncFromArrays = true;
+        }
 
         public IReadOnlyList<GiNode> Nodes
         {
@@ -511,6 +587,8 @@ namespace RLGames
 
             float cellSize = gridWorld.CellSizeXZ / ResolutionMultiplier;
             float radiusCells = radiusWorld / Mathf.Max(cellSize, 1e-4f);
+            bool floorFilter = RestrictSourceInjectionToSourceFloor && RestrictPropagationToSameVerticalLayer;
+            float floorTolerance = floorFilter ? GetEffectiveSameFloorMaxWorldYDelta() : 0f;
 
             Vector2Int center = WorldToSubcellXZ(worldPos);
             int r = Mathf.CeilToInt(radiusCells);
@@ -523,12 +601,18 @@ namespace RLGames
                     if (!TryGetAllLayerIndices(p, out List<int> layerCandidates))
                         continue;
 
+                    float targetFloorY = floorFilter && layerCandidates.Count > 1
+                        ? FindSourceFloorY(layerCandidates, worldPos.y) : 0f;
+
                     for (int li = 0; li < layerCandidates.Count; li++)
                     {
                         int index = layerCandidates[li];
                         Vector3 toNode = worldPosByIndex[index] - worldPos;
                         float dist = toNode.magnitude;
                         if (dist > radiusWorld)
+                            continue;
+                        if (floorFilter && layerCandidates.Count > 1 &&
+                            Mathf.Abs(worldPosByIndex[index].y - targetFloorY) > floorTolerance)
                             continue;
 
                         float falloff = Mathf.Clamp01(1f - dist / radiusWorld);
@@ -577,6 +661,8 @@ namespace RLGames
 
             float cellSize = gridWorld.CellSizeXZ / ResolutionMultiplier;
             float radiusCells = rangeWorld / Mathf.Max(cellSize, 1e-4f);
+            bool floorFilter = RestrictSourceInjectionToSourceFloor && RestrictPropagationToSameVerticalLayer;
+            float floorTolerance = floorFilter ? GetEffectiveSameFloorMaxWorldYDelta() : 0f;
             Vector2Int center = WorldToSubcellXZ(worldPos);
             int r = Mathf.CeilToInt(radiusCells);
 
@@ -588,12 +674,18 @@ namespace RLGames
                     if (!TryGetAllLayerIndices(p, out List<int> layerCandidates))
                         continue;
 
+                    float targetFloorY = floorFilter && layerCandidates.Count > 1
+                        ? FindSourceFloorY(layerCandidates, worldPos.y) : 0f;
+
                     for (int li = 0; li < layerCandidates.Count; li++)
                     {
                         int index = layerCandidates[li];
                         Vector3 toNode = worldPosByIndex[index] - worldPos;
                         float dist = toNode.magnitude;
                         if (dist > rangeWorld || dist <= 1e-6f)
+                            continue;
+                        if (floorFilter && layerCandidates.Count > 1 &&
+                            Mathf.Abs(worldPosByIndex[index].y - targetFloorY) > floorTolerance)
                             continue;
 
                         Vector3 toNodeDir = toNode / dist;
@@ -728,7 +820,7 @@ namespace RLGames
             float diffusion = Mathf.Clamp01(DiffusionStrength);
             float damping = Mathf.Clamp01(Damping);
 
-            bool useBurst = UseJobsBurst && !BounceFeedbackEnabled;
+            bool useBurst = UseJobsBurst && !BounceFeedbackEnabled && !EnableDiffusionReachLimit;
 
             if (useBurst)
             {
@@ -757,18 +849,42 @@ namespace RLGames
                     int[] nbrs = neighbors[i];
 
                     Color neighborSum = Color.black;
+                    int diffusionCount = 0;
                     if (nbrs != null && nbrs.Length > 0)
                     {
                         for (int k = 0; k < nbrs.Length; k++)
-                            neighborSum += currentIrradianceByIndex[nbrs[k]];
-                        neighborSum /= nbrs.Length;
+                        {
+                            int j = nbrs[k];
+                            if (!PassesSameFloorDiffusionFilter(i, j))
+                                continue;
+                            neighborSum += currentIrradianceByIndex[j];
+                            diffusionCount++;
+                        }
+
+                        if (diffusionCount > 0)
+                            neighborSum /= diffusionCount;
+                        else
+                            neighborSum = currentIrradianceByIndex[i];
                     }
 
-                    Color diffused = Color.Lerp(currentIrradianceByIndex[i], neighborSum, diffusion);
+                    float localDiffusion = GetEffectiveDiffusionStrengthForNode(i, diffusion);
                     Color direct = sourceIrradianceByIndex[i];
                     Color bounce = BounceFeedbackEnabled && bounceSourceIrradianceByIndex != null && i < bounceSourceIrradianceByIndex.Length
                         ? bounceSourceIrradianceByIndex[i]
                         : Color.black;
+
+                    // Subtract bounce from the Lerp self-term to prevent double-counting:
+                    // without this, uniform-field self-multiplier is (1+albedo)*damping which
+                    // diverges when albedo*damping > 1-damping. Subtracting bounce keeps the
+                    // self-multiplier at (1+albedo*diffusion)*damping, stable for typical settings.
+                    Color selfBasis = currentIrradianceByIndex[i];
+                    if (bounce.maxColorComponent > 0f)
+                    {
+                        selfBasis.r = Mathf.Max(0f, selfBasis.r - bounce.r);
+                        selfBasis.g = Mathf.Max(0f, selfBasis.g - bounce.g);
+                        selfBasis.b = Mathf.Max(0f, selfBasis.b - bounce.b);
+                    }
+                    Color diffused = Color.Lerp(selfBasis, neighborSum, localDiffusion);
                     workingIrradiance[i] = (direct + bounce + diffused) * damping;
                 }
 
@@ -798,8 +914,15 @@ namespace RLGames
             EnsureArrayStorageSize(count);
             float maxB = settings.maxBounce;
 
+            const float directEps = 1e-6f;
             for (int i = 0; i < count; i++)
             {
+                if (settings.bounceOnlyWhereDirectNonZero && sourceIrradianceByIndex[i].maxColorComponent <= directEps)
+                {
+                    bounceSourceIrradianceByIndex[i] = Color.black;
+                    continue;
+                }
+
                 Color basis = settings.useNeighborAverageForBounce ? GetNeighborAverageCurrent(i) : currentIrradianceByIndex[i];
                 Color b = basis * albedo;
                 if (maxB > 0f)
@@ -822,11 +945,158 @@ namespace RLGames
                 return currentIrradianceByIndex[i];
 
             Color neighborSum = Color.black;
+            int cnt = 0;
             for (int k = 0; k < nbrs.Length; k++)
-                neighborSum += currentIrradianceByIndex[nbrs[k]];
-            neighborSum /= nbrs.Length;
+            {
+                int j = nbrs[k];
+                if (!PassesSameFloorDiffusionFilter(i, j))
+                    continue;
+                neighborSum += currentIrradianceByIndex[j];
+                cnt++;
+            }
+
+            if (cnt == 0)
+                return currentIrradianceByIndex[i];
+            neighborSum /= cnt;
             return neighborSum;
         }
+
+        /// <summary>Resolved max world-Y delta used for same-floor diffusion filtering (for tuning and debug logs).</summary>
+        public float GetEffectiveSameFloorMaxWorldYDelta()
+        {
+            if (PropagationSameFloorMaxWorldYDelta > 0f)
+                return PropagationSameFloorMaxWorldYDelta;
+            return Mathf.Max(1e-4f, gridWorld.CellSizeY * 0.5f);
+        }
+
+        private bool PassesSameFloorDiffusionFilter(int i, int j)
+        {
+            if (!RestrictPropagationToSameVerticalLayer)
+                return true;
+            float maxDy = GetEffectiveSameFloorMaxWorldYDelta();
+            return Mathf.Abs(worldPosByIndex[i].y - worldPosByIndex[j].y) <= maxDy;
+        }
+
+        /// <summary>
+        /// Given candidate node indices at an XZ column, returns the Y of the floor the source
+        /// is on: the highest walkable surface at or below <paramref name="sourceY"/>.
+        /// Falls back to the closest surface if the source is below all surfaces.
+        /// </summary>
+        private float FindSourceFloorY(List<int> layerCandidates, float sourceY)
+        {
+            const float eps = 0.01f;
+            float bestBelow = float.NegativeInfinity;
+            bool foundBelow = false;
+            float closestY = 0f;
+            float closestDist = float.MaxValue;
+
+            for (int li = 0; li < layerCandidates.Count; li++)
+            {
+                float ny = worldPosByIndex[layerCandidates[li]].y;
+                float d = Mathf.Abs(ny - sourceY);
+                if (d < closestDist) { closestDist = d; closestY = ny; }
+                if (ny <= sourceY + eps && (!foundBelow || ny > bestBelow))
+                {
+                    bestBelow = ny;
+                    foundBelow = true;
+                }
+            }
+
+            return foundBelow ? bestBelow : closestY;
+        }
+
+        private static bool InsideSphere(Vector3 p, Vector3 c, float radius, float eps)
+        {
+            float lim = radius + eps;
+            return Vector3.SqrMagnitude(p - c) <= lim * lim;
+        }
+
+        private bool IsWorldPositionInsideAnyStrictDiffusionReachSphere(Vector3 p)
+        {
+            const float eps = 0.02f;
+            for (int s = 0; s < diffusionReachSpheres.Count; s++)
+            {
+                (Vector3 c, float strictR, _) = diffusionReachSpheres[s];
+                if (InsideSphere(p, c, strictR, eps))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool IsWorldPositionInsideAnyBlendDiffusionReachSphere(Vector3 p)
+        {
+            const float eps = 0.02f;
+            for (int s = 0; s < diffusionReachSpheres.Count; s++)
+            {
+                (Vector3 c, _, float blendR) = diffusionReachSpheres[s];
+                if (InsideSphere(p, c, blendR, eps))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private float GetEffectiveDiffusionStrengthForNode(int nodeIndex, float baseDiffusion)
+        {
+            if (!EnableDiffusionReachLimit || diffusionReachSpheres.Count == 0)
+                return baseDiffusion;
+            return IsWorldPositionInsideAnyBlendDiffusionReachSphere(worldPosByIndex[nodeIndex]) ? baseDiffusion : 0f;
+        }
+
+        /// <summary>Debug: nodes with at least one neighbor outside the same-floor world Y band (when restriction is on).</summary>
+        public int CountNodesWithCrossFloorWorldYNeighbors()
+        {
+            if (!RestrictPropagationToSameVerticalLayer || nodes.Count == 0)
+                return 0;
+            float maxDy = GetEffectiveSameFloorMaxWorldYDelta();
+            int n = 0;
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                int[] nbrs = neighbors[i];
+                if (nbrs == null)
+                    continue;
+                float yi = worldPosByIndex[i].y;
+                for (int k = 0; k < nbrs.Length; k++)
+                {
+                    if (Mathf.Abs(yi - worldPosByIndex[nbrs[k]].y) > maxDy)
+                    {
+                        n++;
+                        break;
+                    }
+                }
+            }
+
+            return n;
+        }
+
+        // #region agent log
+        /// <summary>Counts nodes above a Y threshold that have non-zero direct source irradiance (for debug verification).</summary>
+        public int CountNodesWithDirectAboveY(float minY, float directEps = 1e-5f)
+        {
+            int count = 0;
+            int n = GetNodeCount();
+            for (int i = 0; i < n; i++)
+            {
+                if (worldPosByIndex[i].y >= minY && sourceIrradianceByIndex[i].maxColorComponent > directEps)
+                    count++;
+            }
+            return count;
+        }
+
+        /// <summary>Returns the maximum <see cref="currentIrradianceByIndex"/> component across all nodes (for stability checks).</summary>
+        public float GetMaxCurrentIrradiance()
+        {
+            float max = 0f;
+            int n = GetNodeCount();
+            for (int i = 0; i < n; i++)
+            {
+                float v = currentIrradianceByIndex[i].maxColorComponent;
+                if (v > max) max = v;
+            }
+            return max;
+        }
+        // #endregion
 
         #endregion
 
@@ -935,6 +1205,12 @@ namespace RLGames
                     prevCell = cell;
                 }
             }
+
+            // Vertical occlusion at destination: catches floor separation for off-axis traces
+            // (the steps==0 branch already handles the same-XZ case above).
+            Vector2Int destBase = SubcellToBaseTile(to);
+            transmittance *= gridWorld.ComputeGiVerticalTransmittance(
+                destBase, fromWorld.y, toWorld.y, OcclusionFloorHeightCells);
 
             return Mathf.Clamp01(transmittance);
         }

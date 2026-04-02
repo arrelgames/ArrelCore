@@ -44,13 +44,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42d3bd5fc6d0048fdbd5202b69fd7880, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GiManager
-  diffusionStrength: 0.6
-  damping: 0.8
+  diffusionStrength: 0.45
+  damping: 0.86
   propagationTickInterval: 0.1
-  enableBounceFeedback: 0
-  bounceAlbedo: 0.1
+  enableBounceFeedback: 1
+  bounceAlbedo: 0.24
   maxBounce: 0
-  useNeighborAverageForBounce: 1
+  useNeighborAverageForBounce: 0
+  restrictPropagationToSameVerticalLayer: 1
+  propagationSameFloorMaxWorldYDelta: 0
+  bounceOnlyWhereDirectNonZero: 1
+  limitDiffusionToGiSourceReach: 1
+  diffusionReachBlendRadiusScale: 1.45
+  diffusionReachBlendPaddingWorld: 0
+  clearStaleGiOutsideReachWhenSourcesUpdate: 1
   occlusionFloorHeightCells: 4
   occlusionCutoff: 0.05
   buildTexture: 1
@@ -62,13 +69,13 @@ MonoBehaviour:
   globalVolumeSizeName: _GiVolumeSize
   globalVolumeParamsName: _GiVolumeParams
   globalVolumeYParamsName: _GiVolumeParamsY
-  giIntensity: 1
+  giIntensity: 1.1
   forceBindGiMaterialProperties: 1
   materialSyncInterval: 1
   useSourceRegistry: 1
   useSourceDirtyTracking: 1
   xzDownsample: 1
-  yResolution: 4
+  yResolution: 8
   yRangePaddingCells: 0.5
   minWorldYSpanCells: 4
   fullRebuildDirtyTileThreshold: 24

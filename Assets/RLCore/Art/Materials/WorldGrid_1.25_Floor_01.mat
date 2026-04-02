@@ -49,7 +49,7 @@ Material:
     - _BUILTIN_QueueControl: -1
     - _BUILTIN_QueueOffset: 0
     - _Falloff: 50
-    - _GiIntensity: 1
+    - _GiIntensity: 1.1
     - _GiSampleNormalBias: 0.375
     - _GridScale: 1
     - _Grid_Scale: 0.16666666
