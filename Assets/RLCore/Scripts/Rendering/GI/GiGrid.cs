@@ -1070,34 +1070,6 @@ namespace RLGames
             return n;
         }
 
-        // #region agent log
-        /// <summary>Counts nodes above a Y threshold that have non-zero direct source irradiance (for debug verification).</summary>
-        public int CountNodesWithDirectAboveY(float minY, float directEps = 1e-5f)
-        {
-            int count = 0;
-            int n = GetNodeCount();
-            for (int i = 0; i < n; i++)
-            {
-                if (worldPosByIndex[i].y >= minY && sourceIrradianceByIndex[i].maxColorComponent > directEps)
-                    count++;
-            }
-            return count;
-        }
-
-        /// <summary>Returns the maximum <see cref="currentIrradianceByIndex"/> component across all nodes (for stability checks).</summary>
-        public float GetMaxCurrentIrradiance()
-        {
-            float max = 0f;
-            int n = GetNodeCount();
-            for (int i = 0; i < n; i++)
-            {
-                float v = currentIrradianceByIndex[i].maxColorComponent;
-                if (v > max) max = v;
-            }
-            return max;
-        }
-        // #endregion
-
         #endregion
 
         #region Sampling & LOS

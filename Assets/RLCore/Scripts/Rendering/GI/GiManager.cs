@@ -321,28 +321,6 @@ namespace RLGames
                 });
             }
 
-            // #region agent log
-            if (sourcesJustRefreshed && sources.Count > 0 && sources[0] != null && sources[0].isActiveAndEnabled)
-            {
-                float srcY = sources[0].transform.position.y;
-                float bandMinY = srcY + 1.25f;
-                int topDirect = giGrid.CountNodesWithDirectAboveY(bandMinY);
-                float maxIrr = giGrid.GetMaxCurrentIrradiance();
-                long ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                string line =
-                    "{\"sessionId\":\"54e885\",\"hypothesisId\":\"H-floor-target\"," +
-                    "\"location\":\"GiManager.Update\",\"message\":\"post_inject_status\"," +
-                    "\"data\":{\"srcY\":" + srcY.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"bandMinY\":" + bandMinY.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"topDirectCount\":" + topDirect +
-                    ",\"maxIrradiance\":" + maxIrr.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"floorTarget\":" + (giGrid.RestrictSourceInjectionToSourceFloor ? "true" : "false") +
-                    "},\"timestamp\":" + ts + "}\n";
-                try { System.IO.File.AppendAllText("/Users/jmacmini/Documents/GitHub/ArrelCore/.cursor/debug-54e885.log", line); }
-                catch { /* ignore */ }
-            }
-            // #endregion
-
             if (buildTexture)
                 UpdateTextureFromGrid();
         }
