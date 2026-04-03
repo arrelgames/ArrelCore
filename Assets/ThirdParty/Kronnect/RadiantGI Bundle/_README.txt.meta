@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 38fbd05a6a7f048edb3e942aed14ea24
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 225934
+  packageName: Radiant Global Illumination
+  packageVersion: 31.3.1
+  assetPath: Assets/RadiantGI Bundle/_README.txt
+  uploadId: 875238
