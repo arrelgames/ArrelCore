@@ -895,7 +895,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1854805062134517255, guid: 0de81ff1e18a5469fa325e411be1fb2e, type: 3}
       propertyPath: giShGridMode
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5877779471196690056, guid: 0de81ff1e18a5469fa325e411be1fb2e, type: 3}
       propertyPath: m_LocalPosition.x
