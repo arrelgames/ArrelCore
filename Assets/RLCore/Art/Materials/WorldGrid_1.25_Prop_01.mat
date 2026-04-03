@@ -28,8 +28,32 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _GiVolumeSH0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GiVolumeSH1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GiVolumeSH2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _Grid:
         m_Texture: {fileID: 2800000, guid: 2a09470ada0c47849ad79d26363f8e4a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SGFGISample_f29cf06696e8419eb35cf11fcb1b4d6e_GiVolumeSH0_4037025936_Texture3D:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SGFGISample_f29cf06696e8419eb35cf11fcb1b4d6e_GiVolumeSH1_4087357584_Texture3D:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SGFGISample_f29cf06696e8419eb35cf11fcb1b4d6e_GiVolumeSH2_4070580368_Texture3D:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -50,7 +74,9 @@ Material:
     - _BUILTIN_QueueOffset: 0
     - _Falloff: 50
     - _GiIntensity: 1.1
-    - _GiSampleNormalBias: 0.625
+    - _GiSampleNormalBias: 0.375
+    - _GiShTier: 0
+    - _GiUseSH: 0
     - _GridScale: 1
     - _Grid_Scale: 0.16666667
     - _OverlayAmount: 0.5
@@ -64,7 +90,7 @@ Material:
     - _BaseColor: {r: 1, g: 0.724138, b: 0, a: 0}
     - _Base_Color: {r: 0.3475, g: 0.4352895, b: 0.695, a: 0}
     - _GiVolumeParams: {r: 0.1, g: 0.1, b: -0, a: -0}
-    - _GiVolumeParamsY: {r: 0.1, g: 0.05, b: -0.5, a: 9.5}
+    - _GiVolumeParamsY: {r: 0.16666667, g: 0.083333336, b: -0.5, a: 5.5}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &1079644532874978337

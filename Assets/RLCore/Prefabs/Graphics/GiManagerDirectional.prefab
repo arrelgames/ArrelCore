@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4772232884873800926
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8995605592669614198}
+  - component: {fileID: 2574256830833324423}
+  m_Layer: 0
+  m_Name: GiManagerDirectional
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8995605592669614198
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4772232884873800926}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2574256830833324423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4772232884873800926}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5033c737000e6476ab172d29d647ba66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RLGames.GiManagerDirectional
+  sunDirectionReference: {fileID: 0}
+  sunDirectionWorld: {x: 0, y: -1, z: 0}
+  sunIrradiance: {r: 1, g: 1, b: 1, a: 1}
+  sunMaxTraceDistanceWorld: 48
+  respectOcclusion: 1
+  qualityPreset: 1
+  useGapAwareYFill: 1
+  maxYGapInterpolationSlices: 3
+  enableBounceFeedback: 1
+  bounceAlbedo: 0.12
+  maxBounce: 0
+  useNeighborAverageForBounce: 0
+  bounceOnlyWhereDirectNonZero: 1
+  damping: 0.95
+  tickInterval: 0.1
+  occlusionFloorHeightCells: 4
+  occlusionCutoff: 0.05
+  buildTexture: 1
+  globalTextureName: _GiVolume
+  globalIntensityName: _GiIntensity
+  globalGridMinName: _GiGridMinXZ
+  globalGridMaxName: _GiGridMaxXZ
+  globalGridSizeName: _GiGridSizeXZ
+  globalVolumeSizeName: _GiVolumeSize
+  globalVolumeParamsName: _GiVolumeParams
+  globalVolumeYParamsName: _GiVolumeParamsY
+  globalDirectionalActiveName: _GiDirectionalActive
+  globalSunDirName: _GiSunDirWorld
+  giIntensity: 1
+  forceBindGiMaterialProperties: 1
+  materialSyncInterval: 1
+  xzDownsample: 2
+  yResolution: 8
+  yRangePaddingCells: 0.5
+  minWorldYSpanCells: 4
+  giResolutionMultiplier: 1
+  fullRebuildDirtyTileThreshold: 24
+  fullRebuildDirtyNodeFraction: 0.35
+  rebuildCoalesceWindow: 0.05
+  useCameraFollowWindow: 0
+  windowCameraTransform: {fileID: 0}
+  windowWidthTiles: 48
+  windowDepthTiles: 48
+  maxStripShiftTiles: 8
+  maxWindowDirtyTilesPerFrame: 4096
+  useSquareFollowDeadzone: 0
+  squareDeadzoneRadiusTiles: 4
+  secondHarmonicVolumePlanned: 0
+  enableDeckHeightProbes: 0
+  drawNodeGizmos: 1
+  gizmoSphereRadius: 0.15

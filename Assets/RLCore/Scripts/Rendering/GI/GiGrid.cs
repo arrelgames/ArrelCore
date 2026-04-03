@@ -84,6 +84,15 @@ namespace RLGames
         private Vector2Int[] gridPosByIndex = Array.Empty<Vector2Int>();
         private int[] verticalLayerByIndex = Array.Empty<int>();
         private Vector3[] worldPosByIndex = Array.Empty<Vector3>();
+        /// <summary>Direct L0+L1 (mono) SH from point/spot/directional injection; RGBA = (c0,c_{1,-1},c_{1,0},c_{1,+1}).</summary>
+        private Vector4[] shDirectMonoByIndex = Array.Empty<Vector4>();
+        private Vector4[] shDirectRByIndex = Array.Empty<Vector4>();
+        private Vector4[] shDirectGByIndex = Array.Empty<Vector4>();
+        private Vector4[] shDirectBByIndex = Array.Empty<Vector4>();
+        private Vector4[] shBlurScratchMono = Array.Empty<Vector4>();
+        private Vector4[] shBlurScratchR = Array.Empty<Vector4>();
+        private Vector4[] shBlurScratchG = Array.Empty<Vector4>();
+        private Vector4[] shBlurScratchB = Array.Empty<Vector4>();
         private bool nodesNeedSyncFromArrays;
 
         private int resolutionMultiplier = 1;
@@ -159,7 +168,10 @@ namespace RLGames
                     continue;
                 bounceSourceIrradianceByIndex[i] = Color.black;
                 if (zeroCurrent)
+                {
                     currentIrradianceByIndex[i] = Color.black;
+                    ClearShAtIndex(i);
+                }
             }
 
             nodesNeedSyncFromArrays = true;
@@ -548,6 +560,7 @@ namespace RLGames
             EnsureArrayStorageSize(nodes.Count);
             Array.Clear(sourceIrradianceByIndex, 0, nodes.Count);
             Array.Clear(sourceIrradianceFromAboveByIndex, 0, nodes.Count);
+            ClearAllDirectSh();
             nodesNeedSyncFromArrays = true;
         }
 
@@ -573,6 +586,8 @@ namespace RLGames
 
             sourceIrradianceByIndex[index] += irradiance;
             sourceIrradianceFromAboveByIndex[index] += irradiance;
+            GiShBasis.ProjectIsotropicMono(ref shDirectMonoByIndex[index], LinearLuminance(irradiance));
+            GiShBasis.ProjectIsotropicRgb(ref shDirectRByIndex[index], ref shDirectGByIndex[index], ref shDirectBByIndex[index], irradiance);
             nodesNeedSyncFromArrays = true;
         }
 
@@ -631,6 +646,9 @@ namespace RLGames
                         sourceIrradianceByIndex[index] += contribution;
                         if (worldPos.y >= worldPosByIndex[index].y)
                             sourceIrradianceFromAboveByIndex[index] += contribution;
+
+                        Vector3 wIncoming = dist > 1e-5f ? toNode / dist : Vector3.up;
+                        AddShFromContribution(index, wIncoming, contribution);
                     }
                 }
             }
@@ -798,8 +816,134 @@ namespace RLGames
                 sourceIrradianceByIndex[i] += contribution;
                 if (lightDir.y < 0f)
                     sourceIrradianceFromAboveByIndex[i] += contribution;
+                AddShFromContribution(i, lightDir, contribution);
                 affected++;
             }
+            nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Clears direct sources and injects a directional field on every node (no arbitrary node cap).
+        /// When <paramref name="preferVerticalColumnTransmittance"/> is true and the light direction is mostly downward,
+        /// uses per-column vertical transmittance only (fast path for overhead sun).
+        /// </summary>
+        public void ClearSourcesAndApplyDirectionalSun(
+            Vector3 lightDir,
+            Color peakIrradiance,
+            float maxDistanceWorld,
+            bool respectOcclusion,
+            bool preferVerticalColumnTransmittance,
+            float verticalDownMinAbsY)
+        {
+            if (nodes.Count == 0 || maxDistanceWorld <= 0f)
+                return;
+
+            ClearSources();
+            Vector3 L = lightDir.sqrMagnitude > 1e-6f ? lightDir.normalized : Vector3.down;
+            bool verticalFast = preferVerticalColumnTransmittance && Mathf.Abs(L.y) >= verticalDownMinAbsY && L.y < 0f;
+            int count = nodes.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                Color contribution = peakIrradiance;
+                Vector3 p = worldPosByIndex[i];
+
+                if (respectOcclusion)
+                {
+                    float transmittance;
+                    if (verticalFast)
+                    {
+                        Vector2Int baseCell = SubcellToBaseTile(gridPosByIndex[i]);
+                        float fromY = p.y - L.y * maxDistanceWorld;
+                        transmittance = gridWorld.ComputeGiVerticalTransmittance(baseCell, fromY, p.y, OcclusionFloorHeightCells);
+                    }
+                    else
+                    {
+                        Vector3 from = p - L * maxDistanceWorld;
+                        Vector2Int fromSub = WorldToSubcellXZ(from);
+                        bool blockedPassage;
+                        transmittance = ComputeLineTransmittance(from, p, fromSub, gridPosByIndex[i], out blockedPassage);
+                        if (blockedPassage)
+                            continue;
+                    }
+
+                    if (transmittance <= OcclusionCutoff)
+                        continue;
+                    contribution *= transmittance;
+                }
+
+                sourceIrradianceByIndex[i] += contribution;
+                if (L.y < 0f)
+                    sourceIrradianceFromAboveByIndex[i] += contribution;
+            }
+
+            nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Tier-A directional update: no neighbor diffusion; <see cref="currentIrradianceByIndex"/> becomes
+        /// direct source plus optional bounce term, scaled by damping.
+        /// </summary>
+        public void PublishDirectAndBounceToCurrent(float damping)
+        {
+            int count = nodes.Count;
+            if (count == 0)
+                return;
+
+            EnsureArrayStorageSize(count);
+            float d = Mathf.Clamp01(damping);
+            for (int i = 0; i < count; i++)
+            {
+                Color bounce = BounceFeedbackEnabled && bounceSourceIrradianceByIndex != null && i < bounceSourceIrradianceByIndex.Length
+                    ? bounceSourceIrradianceByIndex[i]
+                    : Color.black;
+                currentIrradianceByIndex[i] = (sourceIrradianceByIndex[i] + bounce) * d;
+            }
+
+            nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Like <see cref="UpdateBounceFromCurrent"/> but uses luminance of the basis color for the bounce term (cheaper color bleeding).
+        /// </summary>
+        public void UpdateBounceFromCurrentLumaOnly(in GiBounceSettings settings)
+        {
+            if (!BounceFeedbackEnabled || nodes.Count == 0)
+                return;
+
+            float albedo = Mathf.Clamp01(settings.bounceAlbedo);
+            if (albedo <= 0f)
+            {
+                ClearBounceSources();
+                return;
+            }
+
+            int count = nodes.Count;
+            EnsureArrayStorageSize(count);
+            float maxB = settings.maxBounce;
+            const float directEps = 1e-6f;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (settings.bounceOnlyWhereDirectNonZero && sourceIrradianceByIndex[i].maxColorComponent <= directEps)
+                {
+                    bounceSourceIrradianceByIndex[i] = Color.black;
+                    continue;
+                }
+
+                Color basis = settings.useNeighborAverageForBounce ? GetNeighborAverageCurrent(i) : currentIrradianceByIndex[i];
+                float lum = basis.r * 0.299f + basis.g * 0.587f + basis.b * 0.114f;
+                Color b = new Color(lum, lum, lum) * albedo;
+                if (maxB > 0f)
+                {
+                    b.r = Mathf.Min(b.r, maxB);
+                    b.g = Mathf.Min(b.g, maxB);
+                    b.b = Mathf.Min(b.b, maxB);
+                }
+
+                bounceSourceIrradianceByIndex[i] = b;
+            }
+
             nodesNeedSyncFromArrays = true;
         }
 
@@ -891,6 +1035,54 @@ namespace RLGames
                 for (int i = 0; i < count; i++)
                     currentIrradianceByIndex[i] = workingIrradiance[i];
             }
+            nodesNeedSyncFromArrays = true;
+        }
+
+        /// <summary>
+        /// Optional spatial blur of direct SH coefficients (same neighbor mask as diffusion).
+        /// Tier A: blurs R/G/B SH volumes independently.
+        /// </summary>
+        public void ApplyDirectShNeighborBlur(float strength)
+        {
+            float t = Mathf.Clamp01(strength);
+            if (t <= 0f || nodes.Count == 0)
+                return;
+
+            int count = nodes.Count;
+            EnsureArrayStorageSize(count);
+            EnsureShBlurScratch(count);
+
+            void BlurChannel(Vector4[] src, Vector4[] dst)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    Vector4 sum = src[i];
+                    int cnt = 1;
+                    int[] nbrs = neighbors[i];
+                    if (nbrs != null)
+                    {
+                        for (int k = 0; k < nbrs.Length; k++)
+                        {
+                            int j = nbrs[k];
+                            if (!PassesSameFloorDiffusionFilter(i, j))
+                                continue;
+                            sum += src[j];
+                            cnt++;
+                        }
+                    }
+
+                    dst[i] = Vector4.Lerp(src[i], sum / cnt, t);
+                }
+            }
+
+            BlurChannel(shDirectMonoByIndex, shBlurScratchMono);
+            Array.Copy(shBlurScratchMono, shDirectMonoByIndex, count);
+            BlurChannel(shDirectRByIndex, shBlurScratchR);
+            Array.Copy(shBlurScratchR, shDirectRByIndex, count);
+            BlurChannel(shDirectGByIndex, shBlurScratchG);
+            Array.Copy(shBlurScratchG, shDirectGByIndex, count);
+            BlurChannel(shDirectBByIndex, shBlurScratchB);
+            Array.Copy(shBlurScratchB, shDirectBByIndex, count);
             nodesNeedSyncFromArrays = true;
         }
 
@@ -1209,6 +1401,28 @@ namespace RLGames
             return currentIrradianceByIndex[index];
         }
 
+        /// <summary>Per-channel L0+L1 SH coefficients (RGBA = c0..c3) for Tier A volume upload.</summary>
+        public void GetDirectShRgbAt(int index, out Vector4 r, out Vector4 g, out Vector4 b)
+        {
+            if ((uint)index >= (uint)shDirectRByIndex.Length)
+            {
+                r = g = b = Vector4.zero;
+                return;
+            }
+
+            r = shDirectRByIndex[index];
+            g = shDirectGByIndex[index];
+            b = shDirectBByIndex[index];
+        }
+
+        /// <summary>Shared mono L0+L1 SH (RGBA = c0..c3) for Tier C volume upload.</summary>
+        public Vector4 GetDirectShMonoAt(int index)
+        {
+            if ((uint)index >= (uint)shDirectMonoByIndex.Length)
+                return Vector4.zero;
+            return shDirectMonoByIndex[index];
+        }
+
         /// <summary>
         /// Returns [0..1] representing what fraction of this node's <b>direct</b> source irradiance
         /// (from <see cref="GiSource"/> only) came from above (emitter y &gt;= node y).
@@ -1281,6 +1495,11 @@ namespace RLGames
                 list.Add(i);
             }
 
+            Array.Clear(shDirectMonoByIndex, 0, count);
+            Array.Clear(shDirectRByIndex, 0, count);
+            Array.Clear(shDirectGByIndex, 0, count);
+            Array.Clear(shDirectBByIndex, 0, count);
+
             nodesNeedSyncFromArrays = false;
         }
 
@@ -1295,7 +1514,61 @@ namespace RLGames
                 sourceIrradianceByIndex = new Color[count];
                 sourceIrradianceFromAboveByIndex = new Color[count];
                 bounceSourceIrradianceByIndex = new Color[count];
+                shDirectMonoByIndex = new Vector4[count];
+                shDirectRByIndex = new Vector4[count];
+                shDirectGByIndex = new Vector4[count];
+                shDirectBByIndex = new Vector4[count];
+                shBlurScratchMono = new Vector4[count];
+                shBlurScratchR = new Vector4[count];
+                shBlurScratchG = new Vector4[count];
+                shBlurScratchB = new Vector4[count];
             }
+        }
+
+        private void EnsureShBlurScratch(int count)
+        {
+            if (shBlurScratchMono.Length != count)
+            {
+                shBlurScratchMono = new Vector4[count];
+                shBlurScratchR = new Vector4[count];
+                shBlurScratchG = new Vector4[count];
+                shBlurScratchB = new Vector4[count];
+            }
+        }
+
+        private static float LinearLuminance(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+
+        private void AddShFromContribution(int index, Vector3 wIncoming, Color contribution)
+        {
+            Vector3 w = wIncoming.sqrMagnitude > 1e-8f ? wIncoming.normalized : Vector3.up;
+            GiShBasis.ProjectIncomingRadianceMono(ref shDirectMonoByIndex[index], w, LinearLuminance(contribution));
+            GiShBasis.ProjectIncomingRadianceRgb(
+                ref shDirectRByIndex[index],
+                ref shDirectGByIndex[index],
+                ref shDirectBByIndex[index],
+                w,
+                contribution);
+        }
+
+        private void ClearShAtIndex(int index)
+        {
+            if ((uint)index >= (uint)shDirectMonoByIndex.Length)
+                return;
+            shDirectMonoByIndex[index] = Vector4.zero;
+            shDirectRByIndex[index] = Vector4.zero;
+            shDirectGByIndex[index] = Vector4.zero;
+            shDirectBByIndex[index] = Vector4.zero;
+        }
+
+        private void ClearAllDirectSh()
+        {
+            if (nodes.Count == 0)
+                return;
+            int n = nodes.Count;
+            Array.Clear(shDirectMonoByIndex, 0, n);
+            Array.Clear(shDirectRByIndex, 0, n);
+            Array.Clear(shDirectGByIndex, 0, n);
+            Array.Clear(shDirectBByIndex, 0, n);
         }
 
         private void SyncNodesFromArraysIfNeeded()

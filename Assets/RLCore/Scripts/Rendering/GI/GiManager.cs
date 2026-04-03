@@ -160,15 +160,32 @@ namespace RLGames
         private int[] scratchTexelCounts = System.Array.Empty<int>();
         private Color[] pooledTextureData = System.Array.Empty<Color>();
         private Color[] pooledShiftBuffer = System.Array.Empty<Color>();
-        private bool hasActiveWindowBounds;
-        private int activeMinX, activeMaxX, activeMinY, activeMaxY;
-        private Vector2Int activeWindowAnchorTile;
-        private Vector2Int giDeadzoneOriginTile;
-        private int pendingTexelShiftX;
-        private int pendingTexelShiftZ;
+        private GiActiveVolumeWindow.RuntimeState volumeWindowState;
         private float volumeMinWorldY;
         private float volumeMaxWorldY;
         private float giYWriteOffset;
+
+        [Header("Spherical harmonics (L0+L1)")]
+        [Tooltip("Tier C: one mono SH volume (direction × propagated L0 color). Tier A: three volumes for per-channel angular variation.")]
+        [SerializeField] private GiShGridMode giShGridMode = GiShGridMode.Off;
+        [Range(0f, 1f)]
+        [Tooltip("Blends direct SH coefficients toward neighbor average (same graph mask as diffusion).")]
+        [SerializeField] private float shL1NeighborBlur = 0f;
+        [Range(0f, 1f)]
+        [Tooltip("Shader lerp: 0 = legacy L0-only sampling; 1 = full SH combine.")]
+        [SerializeField] private float giShBlend = 1f;
+        [Tooltip("When true, skips interpolating across large empty Y gaps (applies to L0 and SH volumes).")]
+        [SerializeField] private bool useGapAwareYFillForVolume = false;
+        [Min(1)]
+        [SerializeField] private int maxYGapInterpolationSlices = 3;
+
+        private Texture3D giShTex0;
+        private Texture3D giShTex1;
+        private Texture3D giShTex2;
+        private Color[] pooledSh0Data = System.Array.Empty<Color>();
+        private Color[] pooledSh1Data = System.Array.Empty<Color>();
+        private Color[] pooledSh2Data = System.Array.Empty<Color>();
+        private int[] pooledFillCountsSnapshot = System.Array.Empty<int>();
 
         private float tickTimer;
         private float rebuildCoalesceTimer;
@@ -207,6 +224,7 @@ namespace RLGames
             if (Instance == this)
                 Instance = null;
 
+            DestroyShVolumeTextures();
             ClearShaderGlobals();
         }
 
@@ -309,6 +327,9 @@ namespace RLGames
                 giGrid.ZeroStaleOutsideDiffusionReachSpheres(zeroCurrent: !enableBounceFeedback);
 
             giGrid.StepPropagation();
+
+            if (shL1NeighborBlur > 0f && giShGridMode != GiShGridMode.Off)
+                giGrid.ApplyDirectShNeighborBlur(shL1NeighborBlur);
 
             if (enableBounceFeedback)
             {
@@ -496,7 +517,10 @@ namespace RLGames
             };
 
             Shader.SetGlobalTexture(globalTextureName, giTexture);
-            EnsureTextureBuffers(sizeX * yResolution * sizeZ);
+            int voxelCount = sizeX * yResolution * sizeZ;
+            EnsureTextureBuffers(voxelCount);
+            EnsureShPooledBuffers(voxelCount);
+            RebuildShVolumeTextures(sizeX, yResolution, sizeZ);
             PublishShaderGlobals();
         }
 
@@ -515,11 +539,16 @@ namespace RLGames
                                    giTexture.height != expectedY ||
                                    giTexture.depth != expectedZ;
             if (!needsNewTexture)
+            {
+                if (TryRebuildShVolumeTexturesIfNeeded(expectedX, expectedY, expectedZ))
+                    PublishShaderGlobals();
                 return;
+            }
 
             if (giTexture != null)
                 Destroy(giTexture);
 
+            DestroyShVolumeTextures();
             AllocateTexture();
         }
 
@@ -534,16 +563,43 @@ namespace RLGames
 
             int voxelCount = sizeX * sizeY * sizeZ;
             EnsureTextureBuffers(voxelCount);
+            EnsureShPooledBuffers(voxelCount);
             Color[] data = pooledTextureData;
             System.Array.Clear(data, 0, voxelCount);
             EnsureScratchTexelCountsSize(voxelCount);
             System.Array.Clear(scratchTexelCounts, 0, voxelCount);
+
+            bool writeSh = giShGridMode != GiShGridMode.Off && giShTex0 != null;
+            bool tierA = giShGridMode == GiShGridMode.TierA_PerChannelRgb;
+            Color[] sh0 = writeSh ? pooledSh0Data : null;
+            Color[] sh1 = writeSh && tierA ? pooledSh1Data : null;
+            Color[] sh2 = writeSh && tierA ? pooledSh2Data : null;
+            if (sh0 != null)
+                System.Array.Clear(sh0, 0, voxelCount);
+            if (sh1 != null)
+                System.Array.Clear(sh1, 0, voxelCount);
+            if (sh2 != null)
+                System.Array.Clear(sh2, 0, voxelCount);
 
             int nodeCount = giGrid.GetNodeCount();
             if (nodeCount == 0)
             {
                 giTexture.SetPixels(data);
                 giTexture.Apply(false, false);
+                if (writeSh)
+                {
+                    giShTex0.SetPixels(sh0);
+                    giShTex0.Apply(false, false);
+                    if (tierA)
+                    {
+                        giShTex1.SetPixels(sh1);
+                        giShTex1.Apply(false, false);
+                        giShTex2.SetPixels(sh2);
+                        giShTex2.Apply(false, false);
+                    }
+                }
+
+                PublishShaderGlobals();
                 return;
             }
 
@@ -578,11 +634,43 @@ namespace RLGames
                 int idxTop = tx + sizeX * (tyTop + sizeY * tz);
                 data[idxTop] += irrTop;
                 scratchTexelCounts[idxTop]++;
+                if (writeSh)
+                {
+                    if (tierA)
+                    {
+                        giGrid.GetDirectShRgbAt(i, out Vector4 r, out Vector4 g, out Vector4 b);
+                        sh0[idxTop] += new Color(r.x, r.y, r.z, r.w) * fAbove;
+                        sh1[idxTop] += new Color(g.x, g.y, g.z, g.w) * fAbove;
+                        sh2[idxTop] += new Color(b.x, b.y, b.z, b.w) * fAbove;
+                    }
+                    else
+                    {
+                        Vector4 m = giGrid.GetDirectShMonoAt(i);
+                        sh0[idxTop] += new Color(m.x, m.y, m.z, m.w) * fAbove;
+                    }
+                }
+
                 if (tyBot != tyTop && irrBot.maxColorComponent > 1e-6f)
                 {
                     int idxBot = tx + sizeX * (tyBot + sizeY * tz);
                     data[idxBot] += irrBot;
                     scratchTexelCounts[idxBot]++;
+                    if (writeSh)
+                    {
+                        float fBot = 1f - fAbove;
+                        if (tierA)
+                        {
+                            giGrid.GetDirectShRgbAt(i, out Vector4 r, out Vector4 g, out Vector4 b);
+                            sh0[idxBot] += new Color(r.x, r.y, r.z, r.w) * fBot;
+                            sh1[idxBot] += new Color(g.x, g.y, g.z, g.w) * fBot;
+                            sh2[idxBot] += new Color(b.x, b.y, b.z, b.w) * fBot;
+                        }
+                        else
+                        {
+                            Vector4 m = giGrid.GetDirectShMonoAt(i);
+                            sh0[idxBot] += new Color(m.x, m.y, m.z, m.w) * fBot;
+                        }
+                    }
                 }
             }
 
@@ -590,17 +678,58 @@ namespace RLGames
             {
                 int count = scratchTexelCounts[i];
                 if (count > 1)
+                {
                     data[i] /= count;
+                    if (writeSh)
+                    {
+                        sh0[i] /= count;
+                        if (tierA)
+                        {
+                            sh1[i] /= count;
+                            sh2[i] /= count;
+                        }
+                    }
+                }
             }
 
-            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ,
-                ComputeMaxUpwardCarrySlices(sizeY));
+            EnsureFillCountsSnapshot(voxelCount);
+            System.Array.Copy(scratchTexelCounts, 0, pooledFillCountsSnapshot, 0, voxelCount);
+
+            RunYSliceFillUtility(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
 
             if (useCameraFollowWindow)
                 FillEmptyTexelsFromNeighbors(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
 
+            if (writeSh && !tierA)
+            {
+                System.Array.Copy(pooledFillCountsSnapshot, 0, scratchTexelCounts, 0, voxelCount);
+                RunYSliceFillUtility(sh0, scratchTexelCounts, sizeX, sizeY, sizeZ);
+            }
+            else if (tierA && writeSh)
+            {
+                System.Array.Copy(pooledFillCountsSnapshot, 0, scratchTexelCounts, 0, voxelCount);
+                RunYSliceFillUtility(sh0, scratchTexelCounts, sizeX, sizeY, sizeZ);
+                System.Array.Copy(pooledFillCountsSnapshot, 0, scratchTexelCounts, 0, voxelCount);
+                RunYSliceFillUtility(sh1, scratchTexelCounts, sizeX, sizeY, sizeZ);
+                System.Array.Copy(pooledFillCountsSnapshot, 0, scratchTexelCounts, 0, voxelCount);
+                RunYSliceFillUtility(sh2, scratchTexelCounts, sizeX, sizeY, sizeZ);
+            }
+
             giTexture.SetPixels(data);
             giTexture.Apply(false, false);
+            if (writeSh)
+            {
+                giShTex0.SetPixels(sh0);
+                giShTex0.Apply(false, false);
+                if (tierA)
+                {
+                    giShTex1.SetPixels(sh1);
+                    giShTex1.Apply(false, false);
+                    giShTex2.SetPixels(sh2);
+                    giShTex2.Apply(false, false);
+                }
+            }
+
             PublishShaderGlobals();
         }
 
@@ -612,8 +741,15 @@ namespace RLGames
                 return;
             }
 
-            if (TryApplyPendingTextureShift())
-                pendingTexelShiftX = pendingTexelShiftZ = 0;
+            if (giShGridMode != GiShGridMode.Off)
+            {
+                UpdateTextureFromGrid();
+                return;
+            }
+
+            GiActiveVolumeWindow.TryApplyPendingTextureShift(
+                giTexture, ref pooledTextureData, ref pooledShiftBuffer,
+                ref volumeWindowState.PendingTexelShiftX, ref volumeWindowState.PendingTexelShiftZ);
 
             int sizeX = giTexture.width;
             int sizeY = giTexture.height;
@@ -703,12 +839,120 @@ namespace RLGames
                     data[tidx] /= count;
             }
 
-            FillEmptyYSlicesBidirectional(data, scratchTexelCounts, sizeX, sizeY, sizeZ,
-                ComputeMaxUpwardCarrySlices(sizeY));
+            RunYSliceFillUtility(data, scratchTexelCounts, sizeX, sizeY, sizeZ);
 
             giTexture.SetPixels(data);
             giTexture.Apply(false, false);
             PublishShaderGlobals();
+        }
+
+        private void RunYSliceFillUtility(Color[] volData, int[] counts, int sizeX, int sizeY, int sizeZ)
+        {
+            int maxCarry = ComputeMaxUpwardCarrySlices(sizeY);
+            if (useGapAwareYFillForVolume)
+            {
+                GiVolumeTextureUtilities.FillEmptyYSlicesGapAware(
+                    volData, counts, sizeX, sizeY, sizeZ, maxYGapInterpolationSlices, maxCarry);
+            }
+            else
+            {
+                GiVolumeTextureUtilities.FillEmptyYSlicesBidirectional(
+                    volData, counts, sizeX, sizeY, sizeZ, maxCarry);
+            }
+        }
+
+        private void EnsureFillCountsSnapshot(int voxelCount)
+        {
+            if (pooledFillCountsSnapshot.Length != voxelCount)
+                pooledFillCountsSnapshot = new int[voxelCount];
+        }
+
+        private void EnsureShPooledBuffers(int voxelCount)
+        {
+            if (pooledSh0Data.Length != voxelCount)
+            {
+                pooledSh0Data = new Color[voxelCount];
+                pooledSh1Data = new Color[voxelCount];
+                pooledSh2Data = new Color[voxelCount];
+            }
+        }
+
+        private void DestroyShVolumeTextures()
+        {
+            Texture3D t0 = giShTex0;
+            Texture3D t1 = giShTex1;
+            Texture3D t2 = giShTex2;
+            giShTex0 = null;
+            giShTex1 = null;
+            giShTex2 = null;
+            if (t0 != null)
+                Destroy(t0);
+            if (t1 != null && !ReferenceEquals(t1, t0))
+                Destroy(t1);
+            if (t2 != null && !ReferenceEquals(t2, t0) && !ReferenceEquals(t2, t1))
+                Destroy(t2);
+        }
+
+        private bool TryRebuildShVolumeTexturesIfNeeded(int expectedX, int expectedY, int expectedZ)
+        {
+            if (giShGridMode == GiShGridMode.Off)
+            {
+                if (giShTex0 == null)
+                    return false;
+                DestroyShVolumeTextures();
+                return true;
+            }
+
+            bool sizeBad = giShTex0 == null ||
+                           giShTex0.width != expectedX ||
+                           giShTex0.height != expectedY ||
+                           giShTex0.depth != expectedZ;
+            bool layoutBad = false;
+            if (giShGridMode == GiShGridMode.TierC_Mono && giShTex0 != null)
+                layoutBad = giShTex1 == null || !ReferenceEquals(giShTex1, giShTex0);
+            if (giShGridMode == GiShGridMode.TierA_PerChannelRgb)
+                layoutBad = giShTex1 == null || ReferenceEquals(giShTex1, giShTex0) ||
+                            giShTex2 == null || ReferenceEquals(giShTex2, giShTex0);
+
+            if (!sizeBad && !layoutBad)
+                return false;
+
+            RebuildShVolumeTextures(expectedX, expectedY, expectedZ);
+            return true;
+        }
+
+        private void RebuildShVolumeTextures(int sizeX, int sizeY, int sizeZ)
+        {
+            DestroyShVolumeTextures();
+            if (!buildTexture || giShGridMode == GiShGridMode.Off)
+                return;
+
+            giShTex0 = new Texture3D(sizeX, sizeY, sizeZ, TextureFormat.RGBAHalf, false)
+            {
+                name = "GiVolumeSH0",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+            if (giShGridMode == GiShGridMode.TierA_PerChannelRgb)
+            {
+                giShTex1 = new Texture3D(sizeX, sizeY, sizeZ, TextureFormat.RGBAHalf, false)
+                {
+                    name = "GiVolumeSH1",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear
+                };
+                giShTex2 = new Texture3D(sizeX, sizeY, sizeZ, TextureFormat.RGBAHalf, false)
+                {
+                    name = "GiVolumeSH2",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear
+                };
+            }
+            else
+            {
+                giShTex1 = giShTex0;
+                giShTex2 = giShTex0;
+            }
         }
 
         private void EnsureScratchTexelCountsSize(int size)
@@ -767,6 +1011,23 @@ namespace RLGames
             float invScaleY = 1f / worldSpanY;
             float biasY = -volumeMinWorldY * invScaleY;
             Shader.SetGlobalVector(globalVolumeYParamsName, new Vector4(invScaleY, biasY, volumeMinWorldY, volumeMaxWorldY));
+
+            if (buildTexture && giShGridMode != GiShGridMode.Off && giShTex0 != null)
+            {
+                Shader.SetGlobalTexture(GiShaderGlobals.VolumeSh0, giShTex0);
+                Shader.SetGlobalTexture(GiShaderGlobals.VolumeSh1, giShTex1 != null ? giShTex1 : giShTex0);
+                Shader.SetGlobalTexture(GiShaderGlobals.VolumeSh2, giShTex2 != null ? giShTex2 : giShTex0);
+                Shader.SetGlobalFloat(GiShaderGlobals.UseSH, giShBlend);
+                Shader.SetGlobalFloat(GiShaderGlobals.ShTier,
+                    giShGridMode == GiShGridMode.TierA_PerChannelRgb ? 2f : 1f);
+            }
+            else
+            {
+                GiShaderGlobals.BindNeutralShGlobals();
+            }
+
+            Shader.SetGlobalFloat(GiShaderGlobals.DirectionalActive, 0f);
+            Shader.SetGlobalVector(GiShaderGlobals.SunDirWorld, new Vector4(0f, -1f, 0f, 0f));
         }
 
         private void ClearShaderGlobals()
@@ -778,11 +1039,19 @@ namespace RLGames
             Shader.SetGlobalVector(globalVolumeSizeName, Vector4.zero);
             Shader.SetGlobalVector(globalVolumeParamsName, Vector4.zero);
             Shader.SetGlobalVector(globalVolumeYParamsName, Vector4.zero);
+            GiShaderGlobals.BindNeutralShGlobals();
+            Shader.SetGlobalFloat(GiShaderGlobals.DirectionalActive, 0f);
+            Shader.SetGlobalVector(GiShaderGlobals.SunDirWorld, Vector4.zero);
         }
 
         private void SyncGiMaterialProperties()
         {
             Texture giTex = Shader.GetGlobalTexture(globalTextureName);
+            Texture sh0 = Shader.GetGlobalTexture(GiShaderGlobals.VolumeSh0);
+            Texture sh1 = Shader.GetGlobalTexture(GiShaderGlobals.VolumeSh1);
+            Texture sh2 = Shader.GetGlobalTexture(GiShaderGlobals.VolumeSh2);
+            float useSh = Shader.GetGlobalFloat(GiShaderGlobals.UseSH);
+            float shTier = Shader.GetGlobalFloat(GiShaderGlobals.ShTier);
             Vector4 giParams = Shader.GetGlobalVector(globalVolumeParamsName);
             Vector4 giParamsY = Shader.GetGlobalVector(globalVolumeYParamsName);
             float giInt = Shader.GetGlobalFloat(globalIntensityName);
@@ -826,6 +1095,20 @@ namespace RLGames
                     {
                         mat.SetFloat("_GiSampleNormalBias", giYWriteOffset);
                     }
+                    if (mat.HasProperty(GiShaderGlobals.DirectionalActive))
+                        mat.SetFloat(GiShaderGlobals.DirectionalActive, 0f);
+                    if (mat.HasProperty(GiShaderGlobals.SunDirWorld))
+                        mat.SetVector(GiShaderGlobals.SunDirWorld, new Vector4(0f, -1f, 0f, 0f));
+                    if (mat.HasProperty(GiShaderGlobals.VolumeSh0))
+                        mat.SetTexture(GiShaderGlobals.VolumeSh0, sh0);
+                    if (mat.HasProperty(GiShaderGlobals.VolumeSh1))
+                        mat.SetTexture(GiShaderGlobals.VolumeSh1, sh1);
+                    if (mat.HasProperty(GiShaderGlobals.VolumeSh2))
+                        mat.SetTexture(GiShaderGlobals.VolumeSh2, sh2);
+                    if (mat.HasProperty(GiShaderGlobals.UseSH))
+                        mat.SetFloat(GiShaderGlobals.UseSH, useSh);
+                    if (mat.HasProperty(GiShaderGlobals.ShTier))
+                        mat.SetFloat(GiShaderGlobals.ShTier, shTier);
                 }
             }
         }
@@ -916,16 +1199,21 @@ namespace RLGames
 
         private void InitializeWindowBoundsIfNeeded()
         {
-            if (!useCameraFollowWindow)
+            if (!useCameraFollowWindow || gridWorld == null)
                 return;
 
             Transform anchor = GetWindowAnchorTransform();
             if (anchor == null)
                 return;
 
-            Vector2Int tile = WorldToBaseTile(anchor.position);
-            if (SetActiveWindowFromAnchor(tile, force: true, out _, out _) && useSquareFollowDeadzone)
-                giDeadzoneOriginTile = tile;
+            GiActiveVolumeWindow.TryInitializeWindow(
+                ref volumeWindowState,
+                anchor,
+                gridWorld.CellSizeXZ,
+                windowWidthTiles,
+                windowDepthTiles,
+                useSquareFollowDeadzone,
+                out _);
         }
 
         private void UpdateCameraFollowWindow()
@@ -937,27 +1225,24 @@ namespace RLGames
             if (anchor == null)
                 return;
 
-            Vector2Int tile = WorldToBaseTile(anchor.position);
-            if (useSquareFollowDeadzone && hasActiveWindowBounds)
-            {
-                int cheb = Mathf.Max(
-                    Mathf.Abs(tile.x - giDeadzoneOriginTile.x),
-                    Mathf.Abs(tile.y - giDeadzoneOriginTile.y));
-                if (cheb <= squareDeadzoneRadiusTiles)
-                    return;
-            }
-
-            if (!SetActiveWindowFromAnchor(tile, force: !hasActiveWindowBounds, out int dx, out int dz))
+            Vector2Int tile = GiActiveVolumeWindow.WorldToBaseTile(anchor.position, gridWorld.CellSizeXZ);
+            if (!GiActiveVolumeWindow.TryRecenterFromAnchor(
+                    ref volumeWindowState,
+                    tile,
+                    windowWidthTiles,
+                    windowDepthTiles,
+                    useSquareFollowDeadzone,
+                    squareDeadzoneRadiusTiles,
+                    force: !volumeWindowState.HasActiveWindowBounds,
+                    out int dx,
+                    out int dz))
                 return;
-
-            if (useSquareFollowDeadzone)
-                giDeadzoneOriginTile = tile;
 
             if (!buildTexture || giTexture == null)
                 return;
 
-            int width = Mathf.Max(1, activeMaxX - activeMinX + 1);
-            int depth = Mathf.Max(1, activeMaxY - activeMinY + 1);
+            int width = Mathf.Max(1, volumeWindowState.ActiveMaxX - volumeWindowState.ActiveMinX + 1);
+            int depth = Mathf.Max(1, volumeWindowState.ActiveMaxY - volumeWindowState.ActiveMinY + 1);
             int absDx = Mathf.Abs(dx);
             int absDz = Mathf.Abs(dz);
             bool tooLarge = absDx >= width || absDz >= depth || absDx > Mathf.Max(1, maxStripShiftTiles) || absDz > Mathf.Max(1, maxStripShiftTiles);
@@ -972,10 +1257,10 @@ namespace RLGames
                 return;
             }
 
-            pendingTexelShiftX += subShiftX / ds;
-            pendingTexelShiftZ += subShiftZ / ds;
+            volumeWindowState.PendingTexelShiftX += subShiftX / ds;
+            volumeWindowState.PendingTexelShiftZ += subShiftZ / ds;
             materialSyncTimer = 0f;
-            QueueEnteringStripTiles(dx, dz);
+            GiActiveVolumeWindow.QueueEnteringStripTiles(in volumeWindowState, dx, dz, enteringStripTilesBuffer);
             if (enteringStripTilesBuffer.Count == 0)
             {
                 UpdateTextureFromGrid();
@@ -992,208 +1277,32 @@ namespace RLGames
         }
 
         private Transform GetWindowAnchorTransform()
-        {
-            if (windowCameraTransform != null)
-                return windowCameraTransform;
-
-            Camera cam = Camera.main;
-            return cam != null ? cam.transform : null;
-        }
-
-        private Vector2Int WorldToBaseTile(Vector3 worldPos)
-        {
-            float cell = Mathf.Max(1e-4f, gridWorld.CellSizeXZ);
-            return new Vector2Int(Mathf.FloorToInt(worldPos.x / cell), Mathf.FloorToInt(worldPos.z / cell));
-        }
-
-        private bool SetActiveWindowFromAnchor(Vector2Int anchorTile, bool force, out int dx, out int dz)
-        {
-            dx = 0;
-            dz = 0;
-
-            int width = Mathf.Max(1, windowWidthTiles);
-            int depth = Mathf.Max(1, windowDepthTiles);
-            int halfW = width / 2;
-            int halfD = depth / 2;
-            int newMinX = anchorTile.x - halfW;
-            int newMinY = anchorTile.y - halfD;
-            int newMaxX = newMinX + width - 1;
-            int newMaxY = newMinY + depth - 1;
-
-            if (!force && hasActiveWindowBounds &&
-                newMinX == activeMinX && newMaxX == activeMaxX &&
-                newMinY == activeMinY && newMaxY == activeMaxY)
-            {
-                return false;
-            }
-
-            if (hasActiveWindowBounds)
-            {
-                dx = anchorTile.x - activeWindowAnchorTile.x;
-                dz = anchorTile.y - activeWindowAnchorTile.y;
-            }
-
-            activeMinX = newMinX;
-            activeMaxX = newMaxX;
-            activeMinY = newMinY;
-            activeMaxY = newMaxY;
-            activeWindowAnchorTile = anchorTile;
-            hasActiveWindowBounds = true;
-            return true;
-        }
+            => GiActiveVolumeWindow.ResolveAnchorTransform(windowCameraTransform);
 
         private void GetActiveBounds(out int minTileX, out int maxTileX, out int minTileY, out int maxTileY)
         {
-            if (useCameraFollowWindow && hasActiveWindowBounds)
-            {
-                minTileX = activeMinX;
-                maxTileX = activeMaxX;
-                minTileY = activeMinY;
-                maxTileY = activeMaxY;
-                return;
-            }
-
-            minTileX = minX;
-            maxTileX = maxX;
-            minTileY = minY;
-            maxTileY = maxY;
+            GiActiveVolumeWindow.GetActiveBounds(
+                in volumeWindowState,
+                useCameraFollowWindow,
+                minX, maxX, minY, maxY,
+                out minTileX, out maxTileX, out minTileY, out maxTileY);
         }
 
         private bool IsBaseTileInActiveBounds(Vector2Int tile)
         {
-            GetActiveBounds(out int minTileX, out int maxTileX, out int minTileY, out int maxTileY);
-            return tile.x >= minTileX && tile.x <= maxTileX && tile.y >= minTileY && tile.y <= maxTileY;
+            return GiActiveVolumeWindow.IsBaseTileInActiveBounds(
+                in volumeWindowState,
+                useCameraFollowWindow,
+                tile,
+                minX, maxX, minY, maxY);
         }
 
         private bool TryGetActiveBoundsForGiRebuild(out int minTileX, out int maxTileX, out int minTileY, out int maxTileY)
         {
-            minTileX = maxTileX = minTileY = maxTileY = 0;
-            if (!useCameraFollowWindow || !hasActiveWindowBounds)
-                return false;
-
-            minTileX = activeMinX;
-            maxTileX = activeMaxX;
-            minTileY = activeMinY;
-            maxTileY = activeMaxY;
-            return true;
-        }
-
-        private void QueueEnteringStripTiles(int dx, int dz)
-        {
-            enteringStripTilesBuffer.Clear();
-            if (dx == 0 && dz == 0)
-                return;
-
-            int minTileX = activeMinX;
-            int maxTileX = activeMaxX;
-            int minTileY = activeMinY;
-            int maxTileY = activeMaxY;
-
-            if (dx > 0)
-            {
-                int startX = Mathf.Max(minTileX, maxTileX - dx + 1);
-                for (int x = startX; x <= maxTileX; x++)
-                    for (int y = minTileY; y <= maxTileY; y++)
-                        enteringStripTilesBuffer.Add(new Vector2Int(x, y));
-            }
-            else if (dx < 0)
-            {
-                int endX = Mathf.Min(maxTileX, minTileX - dx - 1);
-                for (int x = minTileX; x <= endX; x++)
-                    for (int y = minTileY; y <= maxTileY; y++)
-                        enteringStripTilesBuffer.Add(new Vector2Int(x, y));
-            }
-
-            if (dz > 0)
-            {
-                int startY = Mathf.Max(minTileY, maxTileY - dz + 1);
-                for (int y = startY; y <= maxTileY; y++)
-                    for (int x = minTileX; x <= maxTileX; x++)
-                        enteringStripTilesBuffer.Add(new Vector2Int(x, y));
-            }
-            else if (dz < 0)
-            {
-                int endY = Mathf.Min(maxTileY, minTileY - dz - 1);
-                for (int y = minTileY; y <= endY; y++)
-                    for (int x = minTileX; x <= maxTileX; x++)
-                        enteringStripTilesBuffer.Add(new Vector2Int(x, y));
-            }
-        }
-
-        private bool TryApplyPendingTextureShift()
-        {
-            if (giTexture == null)
-                return false;
-
-            if (pendingTexelShiftX == 0 && pendingTexelShiftZ == 0)
-                return false;
-
-            int shiftX = pendingTexelShiftX;
-            int shiftZ = pendingTexelShiftZ;
-            int sizeX = giTexture.width;
-            int sizeY = giTexture.height;
-            int sizeZ = giTexture.depth;
-            if (Mathf.Abs(shiftX) >= sizeX || Mathf.Abs(shiftZ) >= sizeZ)
-                return false;
-
-            int voxelCount = sizeX * sizeY * sizeZ;
-            EnsureTextureBuffers(voxelCount);
-            Color[] src = pooledTextureData;
-            Color[] dst = pooledShiftBuffer;
-            System.Array.Clear(dst, 0, voxelCount);
-            for (int z = 0; z < sizeZ; z++)
-            {
-                int fromZ = z + shiftZ;
-                if (fromZ < 0 || fromZ >= sizeZ)
-                    continue;
-                for (int y = 0; y < sizeY; y++)
-                {
-                    for (int x = 0; x < sizeX; x++)
-                    {
-                        int fromX = x + shiftX;
-                        if (fromX < 0 || fromX >= sizeX)
-                            continue;
-
-                        int dstIdx = x + sizeX * (y + sizeY * z);
-                        int srcIdx = fromX + sizeX * (y + sizeY * fromZ);
-                        dst[dstIdx] = src[srcIdx];
-                    }
-                }
-            }
-
-            // Fill entering strip edges by replicating the nearest interior texel
-            // so the visual transition is smooth instead of a black flash.
-            for (int z = 0; z < sizeZ; z++)
-            {
-                int clampedZ = z + shiftZ;
-                if (clampedZ < 0) clampedZ = 0;
-                else if (clampedZ >= sizeZ) clampedZ = sizeZ - 1;
-
-                for (int y = 0; y < sizeY; y++)
-                {
-                    for (int x = 0; x < sizeX; x++)
-                    {
-                        int fromX = x + shiftX;
-                        int fromZ = z + shiftZ;
-                        bool outOfBounds = fromX < 0 || fromX >= sizeX || fromZ < 0 || fromZ >= sizeZ;
-                        if (!outOfBounds)
-                            continue;
-
-                        int clampedX = fromX < 0 ? 0 : (fromX >= sizeX ? sizeX - 1 : fromX);
-                        int clampedFromZ = fromZ < 0 ? 0 : (fromZ >= sizeZ ? sizeZ - 1 : fromZ);
-                        int dstIdx = x + sizeX * (y + sizeY * z);
-                        int edgeSrcIdx = clampedX + sizeX * (y + sizeY * clampedFromZ);
-                        dst[dstIdx] = src[edgeSrcIdx];
-                    }
-                }
-            }
-
-            giTexture.SetPixels(dst);
-            giTexture.Apply(false, false);
-            var tmp = pooledTextureData;
-            pooledTextureData = pooledShiftBuffer;
-            pooledShiftBuffer = tmp;
-            return true;
+            return GiActiveVolumeWindow.TryGetRebuildBounds(
+                in volumeWindowState,
+                useCameraFollowWindow,
+                out minTileX, out maxTileX, out minTileY, out maxTileY);
         }
 
         private void EnsureTextureBuffers(int voxelCount)
@@ -1202,72 +1311,6 @@ namespace RLGames
                 pooledTextureData = new Color[voxelCount];
             if (pooledShiftBuffer.Length != voxelCount)
                 pooledShiftBuffer = new Color[voxelCount];
-        }
-
-        /// <summary>
-        /// For each XZ column, fill empty Y slices using distance-weighted blending
-        /// between the nearest data slices above and below. Slices between two floors
-        /// get a proximity-weighted mix (ceiling sees mostly its own floor's data).
-        /// Slices above the highest data carry upward up to <paramref name="maxUpwardCarrySlices"/>.
-        /// Slices below the lowest stay empty so floor undersides facing away from all light remain dark.
-        /// </summary>
-        /// <param name="maxUpwardCarrySlices">Max empty slices above the highest data to fill. Limits floor-crossing bleed in the texture.</param>
-        private static void FillEmptyYSlicesBidirectional(Color[] data, int[] counts, int sizeX, int sizeY, int sizeZ, int maxUpwardCarrySlices = 2)
-        {
-            for (int tz = 0; tz < sizeZ; tz++)
-            {
-                for (int tx = 0; tx < sizeX; tx++)
-                {
-                    int highestData = -1;
-
-                    Color belowColor = Color.black;
-                    int belowSlice = -1;
-
-                    for (int ty = 0; ty < sizeY; ty++)
-                    {
-                        int idx = tx + sizeX * (ty + sizeY * tz);
-                        if (counts[idx] > 0)
-                        {
-                            if (belowSlice >= 0 && ty - belowSlice > 1)
-                            {
-                                Color aboveColor = data[idx];
-                                int gap = ty - belowSlice;
-                                for (int fy = belowSlice + 1; fy < ty; fy++)
-                                {
-                                    int distBelow = fy - belowSlice;
-                                    int distAbove = ty - fy;
-                                    float total = distBelow + distAbove;
-                                    float wBelow = distAbove / total;
-                                    float wAbove = distBelow / total;
-                                    int fIdx = tx + sizeX * (fy + sizeY * tz);
-                                    data[fIdx] = belowColor * wBelow + aboveColor * wAbove;
-                                    counts[fIdx] = -2;
-                                }
-                            }
-
-                            belowColor = data[idx];
-                            belowSlice = ty;
-                            highestData = ty;
-                        }
-                    }
-
-                    if (highestData >= 0 && maxUpwardCarrySlices > 0)
-                    {
-                        int hIdx = tx + sizeX * (highestData + sizeY * tz);
-                        Color carry = data[hIdx];
-                        int carryLimit = Mathf.Min(sizeY, highestData + 1 + maxUpwardCarrySlices);
-                        for (int ty = highestData + 1; ty < carryLimit; ty++)
-                        {
-                            int idx = tx + sizeX * (ty + sizeY * tz);
-                            if (counts[idx] == 0)
-                            {
-                                data[idx] = carry;
-                                counts[idx] = -2;
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         private static void FillEmptyTexelsFromNeighbors(Color[] data, int[] counts, int sizeX, int sizeY, int sizeZ)
