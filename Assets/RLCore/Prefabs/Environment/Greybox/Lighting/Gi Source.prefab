@@ -48,10 +48,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b082ab515639419eaa76a32f46ba1cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GiSource
+  lightType: 0
   irradiance: {r: 1.0592737, g: 0.5602606, b: 0.24483213, a: 1}
   radius: 3
   respectOcclusion: 1
-  intensityMultiplier: 1
+  intensityMultiplier: 3
+  innerAngle: 25.4
+  outerAngle: 82.9
+  rectWidth: 2.72
+  rectHeight: 3.02
+  rectSamplesX: 2
+  rectSamplesY: 2
+  rectNormalFalloff: 0.5
+  directionalMaxDistance: 8
+  directionalMaxAffectedNodes: 512
+  drawGizmos: 0
+  drawOnlyWhenSelected: 0
+  gizmoPointColor: {r: 1, g: 0.9, b: 0.2, a: 0.85}
+  gizmoSpotColor: {r: 1, g: 0.5, b: 0.2, a: 0.85}
+  gizmoRectColor: {r: 0.2, g: 0.9, b: 1, a: 0.85}
+  gizmoDirectionalColor: {r: 0.5, g: 1, b: 0.3, a: 0.85}
 --- !u!114 &915734223451234567
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -59,17 +75,17 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1243973060242373985}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d3c714e9546045d28f8ac60c7209e2d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RLGames.GiSourceMover
-  useLocalSpace: 1
+  useLocalSpace: 0
   pingPong: 1
   autoCaptureStartOnPlay: 1
-  duration: 3
-  startPosition: {x: 0.79, y: 1, z: 2.05}
-  endPosition: {x: 9.51, y: 1, z: 2.05}
+  duration: 1
+  startPosition: {x: 0, y: 1, z: 0}
+  endPosition: {x: 10, y: 1, z: 10}
 --- !u!33 &1809727245957409612
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -170,8 +186,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.75, g: 0.40312502, b: 0.1875, a: 1}
-  m_Intensity: 10
+  m_Color: {r: 0.5943396, g: 0.42354244, b: 0.31679422, a: 1}
+  m_Intensity: 3
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
